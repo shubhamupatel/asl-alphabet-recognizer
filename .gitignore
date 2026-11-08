@@ -224,3 +224,4 @@ models/hand_landmarker.task
 
 # Data
 data/raw
+data/processed/kaggle.npz
