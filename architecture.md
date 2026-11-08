@@ -1,0 +1,147 @@
+# ASL Alphabet Recognizer - Architecture & Decision Log
+
+## Purpose
+
+This is a from-scratch rebuild (v2) of my real-time sign language recognition project. The goal is to improve the performance of the project while also transitioning into more popular frameworks.
+
+**v1 (summer 2025):** Built with OpenCV and TensorFlow. It recognized static ASL letters at about 90% accuracy, but only under clean lighting and a controlled background.
+
+**v2 goal:** Keep accuracy while holding up under ordinary lighting and backgrounds.
+
+## Scope
+
+The system recognizes individual letters of the American Sign Language (ASL) fingerspelling alphabet, signed with one hand. Words, sentences, two-handed signs, facial grammar, and sign-to-text translation are out of scope.
+
+## Design Principles
+
+**Extensibility through clean seams, not up-front abstraction.** The system is a pipeline of independent stages. Each stage has a clear input and output, so one stage can be swapped or extended without rewriting the others. In practice:
+- Landmark processing works on one frame at a time
+- The list of class labels is defined in a single place
+- Every classifier exposes the same interface: landmarks in → predicted letter and confidence out
+
+Two known future extensions motivate this:
+- Adding the motion letters J and Z, using a sequence model over landmarks from consecutive frames
+- Upgrading to a hybrid approach, where a CNN classifies a cropped image of the hand
+
+## Pipeline Overview
+
+```
+Webcam frame
+  → hand detection + landmark extraction (MediaPipe: 21 points * x, y, z)
+  → normalization (positions made relative to the wrist and scaled for hand size)
+  → feature vector (63 numbers)
+  → classifier
+  → predicted letter + confidence
+  → drawn onto the video frame
+```
+
+## Decision Log
+
+Each entry records the options considered, what was chosen, and why.
+
+### D0: Limit scope to the ASL alphabet
+
+**Decision:** Classify single fingerspelled letters only
+
+**Why:** It keeps the project small enough to understand end to end. It also turns the problem into standard multi-class classification over a small, fixed set of labels (at most 26), rather than open-ended sign-to-text translation.
+
+### D1: Handle J and Z: static letters only for now
+
+**Options considered:**
+1. Recognize only the 24 static letters
+2. Include J and Z as static snapshots
+3. Include J and Z using a sequence model
+
+**Decision:** Option 1. J and Z are logged as future work
+
+**Why:**
+- Every remaining letter is a single hand shape, so each prediction is one frame in → one label out
+- Snapshot versions of J and Z would teach the model poses that aren't the real signs. A snapshot of J is indistinguishable from I
+- A sequence model would roughly double the scope
+- v1 also handled static letters only
+
+**Extension path:** Because we use landmarks (D2), adding J and Z is an add-on rather than an overhaul. A motion sign becomes a short sequence of 63-number vectors (for example, 30 frames * 63). The extension needs three additions:
+- Clip-based data collection
+- A sequence model, such as an LSTM
+- A rolling buffer of recent frames at inference time
+
+The hard part is telling a held I from the start of a J. There are two options:
+- One sequence model for all 26 letters
+- The existing static classifier plus a motion check that hands off to a separate J/Z model
+
+### D2: Recognition approach: hand landmarks + small classifier
+
+**Options considered:**
+1. A CNN trained directly on raw images of hands
+2. A pretrained hand tracker (Google's MediaPipe) that extracts 21 hand landmarks, followed by a small classifier trained on those coordinates
+3. A hybrid: MediaPipe locates and crops the hand, then a CNN classifies the crop
+
+**Decision:** Option 2, landmarks plus a small classifier
+
+**Why:**
+- The classifier only ever sees hand geometry, so it is largely unaffected by background, lighting, and camera differences. Those differences are the main reason raw-image CNNs trained on public datasets fail on a real webcam (distribution shift)
+- The model is small enough to train on a laptop CPU and to run in real time
+- The dataset can be collected personally with a webcam
+- Landmarks also make the J/Z extension cheap. A motion sign becomes a short sequence of 63-number vectors instead of a video clip of raw pixels
+
+**Trade-offs accepted:**
+- Hand detection relies on a pretrained model I didn't build
+- Letters that differ mainly in thumb placement (A, S, T, M, N) may be harder to separate, and landmark depth (z) values are noisy
+- If MediaPipe misses the hand in a frame, that frame gets no prediction
+- The classifier is a simple network. The hybrid approach (option 3) is kept as a possible later upgrade
+
+### D3: Framework: PyTorch
+
+**Options considered:**
+1. PyTorch
+2. TensorFlow with Keras
+
+**Decision:** PyTorch
+
+**Why:**
+- The training loop is written explicitly (forward pass, loss, backward pass, optimizer step), so every step of learning is visible and explainable. This directly serves the goal of the rebuild
+- Owning the loop makes it easy to add validation checks and early stopping
+- PyTorch is the most common framework in AI research and AI engineering roles
+- Debugging works like ordinary Python
+
+**Trade-offs accepted:**
+- There is more boilerplate than Keras's one-line `model.fit()`
+- v1 used TensorFlow, so the project is presented as v1 (TensorFlow, controlled conditions) → v2 (PyTorch + landmarks, built for ordinary conditions)
+
+**Interview answer for "why switch frameworks?":** I wanted the training loop explicit so I understood every step, and PyTorch is what most of the field uses.
+
+### D4: Run locally on a Windows laptop
+
+**Options considered:**
+1. My personal laptop
+2. Google Colab
+
+**Decision:** Local
+
+**Why:**
+- The webcam is needed for both data collection and the live demo. Colab can only reach a webcam through an awkward browser workaround
+- The model has roughly 11k parameters, so a laptop CPU is able to train it comfortably. Colab's free GPU offers no real benefit here
+- Everything lives in one project folder that can go on GitHub
+
+**Trade-offs accepted:** I manage the installation and debug environment issues myself.
+
+### D5: MediaPipe API: Tasks API (HandLandmarker)
+
+**Options considered:**
+1. The current Tasks API (`HandLandmarker`)
+2. The legacy `mp.solutions.hands` API, by pinning an old MediaPipe version
+
+**Decision:** Tasks API
+
+**Why:**
+- The legacy Solutions API was removed from MediaPipe starting with version 0.10.30, and support for it ended in March 2023
+- The MediaPipe versions that support Python 3.13 (the version this project uses) don't include the legacy API at all
+
+**Trade-offs accepted:**
+- The Tasks API needs a separate downloaded model file (`hand_landmarker.task`)
+- Its setup code is slightly more involved
+- Most older tutorials, and v1, use the legacy API, so their code won't work as-is
+
+## Open Decisions
+
+None at the moment.
