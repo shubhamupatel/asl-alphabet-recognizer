@@ -45,6 +45,7 @@ asl-alphabet-recognizer/
 │   ├── landmarks.py      # MediaPipe hand landmark extraction
 │   ├── features.py       # normalization → 63-number feature vector
 │   └── model.py          # classifier definition
+├── prepare_kaggle_data.py  # Kaggle photos → landmark data (data/processed/kaggle.npz)
 ├── collect_data.py       # webcam → labeled landmark samples
 ├── train.py              # training loop + early stopping
 ├── evaluate.py           # final test-set evaluation
