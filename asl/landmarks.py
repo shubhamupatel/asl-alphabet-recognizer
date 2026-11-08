@@ -37,7 +37,10 @@ class HandLandmarkExtractor:
         self._last_timestamp_ms = -1
 
     def extract(self, frame_bgr):
-        """Return the hand's 21 landmarks as a (21, 3) float32 array, or None if no hand is found."""
+        """Return (landmarks, is_left_hand) for the detected hand, or None if no hand is found.
+
+        landmarks is a (21, 3) float32 array of x, y, z positions.
+        """
         # Turn OpenCV's BGR format to MediaPipe's RGB format
         frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
 
@@ -60,7 +63,10 @@ class HandLandmarkExtractor:
         # If a hand was found, pull out the 21 landmark points and extract the (x,y,z) coordinates for each point
         hand = result.hand_landmarks[0]
         # Convert them into a NumPy array of shape (21,3)
-        return np.array([[point.x, point.y, point.z] for point in hand], dtype=np.float32)
+        landmarks = np.array([[point.x, point.y, point.z] for point in hand], dtype=np.float32)
+        # Check for handedness. "Left" is the user's real left hand
+        is_left_hand = result.handedness[0][0].category_name == "Left"
+        return landmarks, is_left_hand
 
     def close(self):
         """Release MediaPipe's resources."""
@@ -80,12 +86,14 @@ if __name__ == "__main__":
             if not ok:
                 break
 
-            landmarks = extractor.extract(frame)
-            if landmarks is not None:
+            detection = extractor.extract(frame)
+            if detection is not None:
+                landmarks, is_left_hand = detection
                 height, width = frame.shape[:2]
                 for x, y, _ in landmarks:
                     cv2.circle(frame, (int(x * width), int(y * height)), 4, (0, 255, 0), -1)
-                status = f"Hand found: {landmarks.shape}"
+                hand_name = "Left" if is_left_hand else "Right"
+                status = f"{hand_name} hand: {landmarks.shape}"
             else:
                 status = "No hand"
 
