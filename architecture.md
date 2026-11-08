@@ -314,6 +314,25 @@ The hard part is telling a held I from the start of a J. There are two options:
 **Trade-offs accepted:**
 - `extract()` now returns pixel coordinates instead of 0–1 fractions, so anything that used the old format had to be updated
 
+### D14: Depth values: keep z
+
+**Options considered:**
+1. Keep z (63 features)
+2. Drop z (42 features)
+3. Train both ways and compare (an ablation study)
+
+**Decision:** Option 1, with option 3 planned once training works
+
+**Why:**
+- Several letters are distinguished mainly by depth: whether the thumb sits in front of, beside, or behind the fingers (A, S, E; M, N, T) and how far fingers curl toward the camera (C, O). These overlap with the letters D2 flagged as hardest to separate
+- A neural network learns how much to rely on each input, so if z is mostly noise, the model can learn to give it less weight
+- Keeping z leaves the choice to the model. Dropping it would remove information the model can never get back
+
+**Trade-offs accepted:**
+- z is the noisiest of the three values, which may make learning harder with limited data
+
+**Follow-up:** Once training works, train with and without z and compare validation accuracy, especially on A, S, E, M, N, and T. The comparison uses validation data only, so the test set stays untouched
+
 ## Open Decisions
 
 None at the moment.
