@@ -254,6 +254,26 @@ The hard part is telling a held I from the start of a J. There are two options:
 **Trade-offs accepted:**
 - Natural, unintended tilt stays in the data, so the model has to learn to tolerate it. Training data should include natural variation in tilt
 
+### D11: Left hands: mirror to right-hand form
+
+**Options considered:**
+1. Support only the hand used for data collection
+2. Collect data with both hands
+3. Mirror left hands so they match right hands, by flipping the sign of x after centering on the wrist
+
+**Decision:** Option 3
+
+**Why:**
+- Left-handed fingerspelling is the mirror image of right-handed fingerspelling, so a model trained on only one hand misreads the other
+- Mirroring gives every hand one standard form, so each letter is a single shape to learn
+- Data collected with either hand serves both, without doubling collection
+- Mirroring is one operation (x → −x after centering) and doesn't change palm length, so D9's scaling is unaffected
+
+**Trade-offs accepted:**
+- Correctness depends on MediaPipe's handedness label. A misidentified hand gets flipped wrongly and is likely misclassified
+- `extract()` returns the handedness along with the landmarks
+- MediaPipe's left/right labeling convention has to be verified on our non-mirrored webcam frames
+
 ## Open Decisions
 
 None at the moment.
