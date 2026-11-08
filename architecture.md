@@ -179,6 +179,24 @@ The hard part is telling a held I from the start of a J. There are two options:
 - Slightly more structure than a flat layout
 - Scripts must stay in the top folder, since moving them into a subfolder would break imports from `asl`
 
+### D7: MediaPipe running mode: VIDEO
+
+**Options considered:**
+1. IMAGE: every frame processed independently, as an unrelated photo
+2. VIDEO: frames processed as a connected sequence, synchronously
+3. LIVE_STREAM: asynchronous processing, with results delivered to a callback
+
+**Decision:** VIDEO
+
+**Why:**
+- Every frame is processed, with no dropped frames, so each saved training sample reliably pairs one frame's landmarks with its label
+- Tracking between frames skips full hand detection once the hand is found, making it faster and smoother than IMAGE
+- Calls are synchronous, so the code reads top to bottom with no callbacks or threads
+
+**Trade-offs accepted:**
+- Every frame needs an increasing timestamp, which is handled inside `asl/landmarks.py`
+- If processing is slow, the loop waits on it. LIVE_STREAM remains an option if the demo feels laggy, and the change would be contained within `asl/landmarks.py`
+
 ## Open Decisions
 
 None at the moment.
