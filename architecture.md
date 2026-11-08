@@ -352,6 +352,28 @@ The hard part is telling a held I from the start of a J. There are two options:
 - If features are ever standardized (subtract each feature's mean, divide by its standard deviation), the zero columns have a standard deviation of 0 and need special handling to avoid dividing by zero
 - The weights attached to these inputs never train, so they slightly inflate the parameter count
 
+### D16: Photo support: IMAGE mode via a constructor option
+
+**Context:** D12 adds the Kaggle dataset's photos as a data source. Consecutive photos are unrelated, so VIDEO mode's tracking would carry one photo's hand position into the next.
+
+**Options considered:**
+1. One class with a `video_mode` option: VIDEO mode for the webcam, IMAGE mode for photos
+2. Two separate classes, one per mode, sharing a parent class
+3. VIDEO mode for everything, with made-up timestamps
+
+**Decision:** Option 1
+
+**Why:**
+- All shared logic (color conversion, pixel units, handedness) exists once, so photos and webcam frames can never be processed differently. D12 depends on both sources producing identical features
+- The modes differ only in the detection call, so one `if` is enough. Two classes would add structure for a one-line difference
+- The option is a plain True/False, so callers never need to import anything from MediaPipe
+- Tracking across unrelated photos would cause missed or misplaced detections
+
+**Trade-offs accepted:**
+- The class carries timestamp state that IMAGE mode never uses
+
+**Note:** It doesn't matter whether the dataset's photos were mirrored like a selfie camera. A mirrored right hand looks like a left hand, so MediaPipe labels it "Left," and D11 mirrors it back to right-hand form
+
 ## Open Decisions
 
 None at the moment.
