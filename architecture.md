@@ -374,6 +374,24 @@ The hard part is telling a held I from the start of a J. There are two options:
 
 **Note:** It doesn't matter whether the dataset's photos were mirrored like a selfie camera. A mirrored right hand looks like a left hand, so MediaPipe labels it "Left," and D11 mirrors it back to right-hand form
 
+### D17: Saved data: raw landmarks, not features
+
+**Options considered:**
+1. Raw landmarks (the (21, 3) pixel array), plus handedness, letter, and source. Features are computed when the data is loaded
+2. The final 63-number features, plus the letter
+3. Both
+
+**Decision:** Option 1
+
+**Why:**
+- Changing the feature processing, such as for D14's z ablation, only means recomputing features from the saved landmarks, without rerunning MediaPipe over tens of thousands of photos
+- `landmarks_to_features` stays the single path to features for every source: the dataset, my recordings, and the live demo
+- Recording each sample's source makes it possible to keep my recordings for the test set (D12), and to keep one recording session from being split across training and test data
+- Handedness and original positions stay available for inspecting odd samples
+
+**Trade-offs accepted:**
+- Features are recomputed on every training run, which takes about a second
+
 ## Open Decisions
 
 None at the moment.
