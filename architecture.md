@@ -49,7 +49,9 @@ asl-alphabet-recognizer/
 ├── train.py              # training loop + early stopping
 ├── evaluate.py           # final test-set evaluation
 ├── run_demo.py           # live webcam recognition
-├── data/                 # collected samples
+├── data/
+│   ├── raw/              # downloaded datasets, never modified (not committed)
+│   └── processed/        # landmark .npz files, one per source
 └── models/               # hand_landmarker.task + trained weights
 ```
 
@@ -391,6 +393,27 @@ The hard part is telling a held I from the start of a J. There are two options:
 
 **Trade-offs accepted:**
 - Features are recomputed on every training run, which takes about a second
+
+### D18: Saved data format: NumPy .npz, one file per source
+
+**Options considered:**
+1. NumPy `.npz`: one compressed file holding several named arrays
+2. CSV: one row per sample
+3. Pickle (Python's built-in object serialization)
+4. Parquet (a typed, compressed table format)
+
+**Decision:** Option 1, with one file per source
+
+**Why:**
+- Arrays load back with their exact types and shapes (float32, (N, 21, 3)), so nothing needs parsing or reshaping
+- Binary storage is compact and fast, and NumPy is already a dependency
+- One file per source (the Kaggle dataset, each recording session) works around .npz files not supporting appends, and keeps sources separate for splitting
+- Pickle can run arbitrary code when a file is loaded and breaks across Python versions. Parquet would add two new dependencies
+
+**Trade-offs accepted:**
+- Files aren't human-readable, so inspecting one takes a line of Python
+
+**Note:** Letters are stored as text ("K"), not as class indices. Indices shift if the label set changes (adding J would move K from 9 to 10), so they're computed at load time with `LETTER_TO_INDEX`
 
 ## Open Decisions
 
