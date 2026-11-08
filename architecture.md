@@ -217,6 +217,26 @@ The hard part is telling a held I from the start of a J. There are two options:
 **Trade-offs accepted:**
 - Demo predictions may flicker between similar letters, such as M and N. If they do, prediction smoothing (option 3) addresses it without touching the training data
 
+### D9: Normalization: wrist origin, palm-length scale
+
+**Options considered:**
+1. Wrist as the origin, divide by palm length (wrist to middle-finger knuckle, landmarks 0 → 9)
+2. Wrist as the origin, divide by the farthest landmark's distance from the wrist
+3. Center of all 21 points as the origin, divide by the hand's bounding-box size
+4. MediaPipe's world landmarks (3D positions in meters, centered on the hand)
+
+**Decision:** Option 1
+
+**Why:**
+- Subtracting the wrist removes where the hand is in the frame. Dividing by palm length removes how close it is to the camera
+- The palm is rigid, so its length doesn't change between letters. A normalization reference must not depend on the thing being classified
+- Options 2 and 3 fail that test: the farthest point, the center, and the bounding box all shift as fingers fold, so normalizing by them would partly erase the shape differences between letters
+- World landmarks are 3D estimates that inherit z's noise, and would still need a size step to handle different hand sizes
+
+**Trade-offs accepted:**
+- Tilting the palm toward or away from the camera makes it look shorter, which slightly changes the scale
+- x and y are fractions of the frame's width and height, so hand shapes are slightly stretched in the numbers. This is consistent as long as data collection and the demo use the same webcam, but would matter with a camera whose frame has a different shape
+
 ## Open Decisions
 
 None at the moment.
