@@ -63,9 +63,6 @@ class HandLandmarkExtractor:
         else:
             result = self._landmarker.detect(mp_image)
 
-        # Call the landmarker on the frame to run hand detection and landmark extraction
-        result = self._landmarker.detect_for_video(mp_image, timestamp_ms)
-
         # If no hand was found, return None
         if not result.hand_landmarks:
             return None
