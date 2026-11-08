@@ -333,6 +333,25 @@ The hard part is telling a held I from the start of a J. There are two options:
 
 **Follow-up:** Once training works, train with and without z and compare validation accuracy, especially on A, S, E, M, N, and T. The comparison uses validation data only, so the test set stays untouched
 
+### D15: Wrist values: keep all 63 features
+
+**Context:** After normalization the wrist is always the origin, so its three values are always zero.
+
+**Options considered:**
+1. Keep them (63 features)
+2. Drop them (60 features)
+
+**Decision:** Option 1
+
+**Why:**
+- An always-zero input is harmless. It contributes nothing to any neuron's output, and its weights receive zero gradient, so they never change
+- Features line up exactly with MediaPipe's landmark numbering: feature 3·i + k is landmark i's coordinate k, and the vector reshapes cleanly back to (21, 3)
+- Dropping them would shift every feature position by one landmark, an easy off-by-one error, for no real benefit
+
+**Trade-offs accepted:**
+- If features are ever standardized (subtract each feature's mean, divide by its standard deviation), the zero columns have a standard deviation of 0 and need special handling to avoid dividing by zero
+- The weights attached to these inputs never train, so they slightly inflate the parameter count
+
 ## Open Decisions
 
 None at the moment.
