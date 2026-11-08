@@ -2,9 +2,13 @@
 
 import numpy as np
 
+NUM_LANDMARKS = 21
 WRIST = 0
 MIDDLE_FINGER_MCP = 9
 X_AXIS = 0
+
+# Each landmark contributes x, y, and z
+NUM_FEATURES = NUM_LANDMARKS * 3
 
 
 def normalize_landmarks(landmarks):
@@ -24,3 +28,14 @@ def mirror_to_right_hand(normalized_landmarks):
     mirrored = normalized_landmarks.copy()
     mirrored[:, X_AXIS] = -mirrored[:, X_AXIS]
     return mirrored
+
+def landmarks_to_features(landmarks, is_left_hand):
+    """Turn raw (21, 3) landmarks into the 63-number feature vector the classifier uses.
+
+    Normalizes position and size (D9), mirrors left hands to right-hand form (D11),
+    and flattens the result. Keeps z (D14) and the wrist's zeros (D15).
+    """
+    normalized = normalize_landmarks(landmarks)
+    if is_left_hand:
+        normalized = mirror_to_right_hand(normalized)
+    return normalized.flatten()
