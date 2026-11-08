@@ -34,7 +34,7 @@ class HandLandmarkExtractor:
         self._start_time = time.monotonic()
         self._last_timestamp_ms = -1
 
-        # Remember the choice so extract() can check it after every call
+        # Remember the choice so extract() can check it on every call
         self._video_mode = video_mode
 
     def _next_timestamp_ms(self):
@@ -57,7 +57,7 @@ class HandLandmarkExtractor:
         # Wrap in a MediaPipe image so it can process it
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
 
-        # Use timestamps if VIDEO mode
+        # Run hand detection and landmark extraction, using timestamps in VIDEO mode
         if self._video_mode:
             result = self._landmarker.detect_for_video(mp_image, self._next_timestamp_ms())
         else:

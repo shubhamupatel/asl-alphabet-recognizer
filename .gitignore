@@ -221,3 +221,6 @@ __marimo__/
 
 # Model
 models/hand_landmarker.task
+
+# Data
+data/raw
