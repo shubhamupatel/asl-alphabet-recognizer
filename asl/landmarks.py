@@ -32,7 +32,7 @@ class HandLandmarkExtractor:
         # Load the model
         self._landmarker = vision.HandLandmarker.create_from_options(options)
 
-        # Create a timestamp
+        # Starting point for VIDEO mode's timestamps
         self._start_time = time.monotonic()
         self._last_timestamp_ms = -1
 
@@ -68,7 +68,7 @@ class HandLandmarkExtractor:
             [[point.x * width, point.y * height, point.z * width] for point in hand],
             dtype=np.float32,
         )
-        # Check for handedness. "Left" is the user's real left hand
+        # Check for handedness. "Left" is the user's real left hand, which was verified on non-mirrored webcams
         is_left_hand = result.handedness[0][0].category_name == "Left"
         return landmarks, is_left_hand
 
@@ -93,9 +93,8 @@ if __name__ == "__main__":
             detection = extractor.extract(frame)
             if detection is not None:
                 landmarks, is_left_hand = detection
-                cv2.circle(frame, (int(x), int(y)), 4, (0, 255, 0), -1)
                 for x, y, _ in landmarks:
-                    cv2.circle(frame, (int(x * width), int(y * height)), 4, (0, 255, 0), -1)
+                    cv2.circle(frame, (int(x), int(y)), 4, (0, 255, 0), -1)
                 hand_name = "Left" if is_left_hand else "Right"
                 status = f"{hand_name} hand: {landmarks.shape}"
             else:
