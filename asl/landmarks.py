@@ -8,15 +8,13 @@ import mediapipe as mp
 import numpy as np
 from mediapipe.tasks.python import BaseOptions, vision
 
-NUM_LANDMARKS = 21
-
 DEFAULT_MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "hand_landmarker.task"
 
 
 class HandLandmarkExtractor:
-    """Wraps MediaPipe's HandLandmarker in VIDEO mode (see D7 in architecture.md)."""
+    """Wraps MediaPipe's HandLandmarker: VIDEO mode for webcam frames (D7), IMAGE mode for photos (D16)."""
 
-    def __init__(self, model_path=DEFAULT_MODEL_PATH):
+    def __init__(self, model_path=DEFAULT_MODEL_PATH, video_mode=True):
         # Verify model exists
         model_path = Path(model_path)
         if not model_path.exists():
@@ -25,7 +23,7 @@ class HandLandmarkExtractor:
         # Configuration
         options = vision.HandLandmarkerOptions(
             base_options=BaseOptions(model_asset_path=str(model_path)),
-            running_mode=vision.RunningMode.VIDEO,
+            running_mode=vision.RunningMode.VIDEO if video_mode else vision.RunningMode.IMAGE,
             num_hands=1,
         )
 
@@ -35,6 +33,18 @@ class HandLandmarkExtractor:
         # Starting point for VIDEO mode's timestamps
         self._start_time = time.monotonic()
         self._last_timestamp_ms = -1
+
+        # Remember the choice so extract() can check it after every call
+        self._video_mode = video_mode
+
+    def _next_timestamp_ms(self):
+        """Return a strictly increasing timestamp in milliseconds, as VIDEO mode requires."""
+        # Generate a timestamp in milliseconds
+        timestamp_ms = int((time.monotonic() - self._start_time) * 1000)
+        # Make sure two timestamps don't land in the same millisecond
+        timestamp_ms = max(timestamp_ms, self._last_timestamp_ms + 1)
+        self._last_timestamp_ms = timestamp_ms
+        return timestamp_ms
 
     def extract(self, frame_bgr):
         """Return (landmarks, is_left_hand) for the detected hand, or None if no hand is found.
@@ -47,11 +57,11 @@ class HandLandmarkExtractor:
         # Wrap in a MediaPipe image so it can process it
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
 
-        # Generate a timestamp in milliseconds
-        timestamp_ms = int((time.monotonic() - self._start_time) * 1000)
-        # Make sure two timestamps don't land in the same millisecond
-        timestamp_ms = max(timestamp_ms, self._last_timestamp_ms + 1)
-        self._last_timestamp_ms = timestamp_ms
+        # Use timestamps if VIDEO mode
+        if self._video_mode:
+            result = self._landmarker.detect_for_video(mp_image, self._next_timestamp_ms())
+        else:
+            result = self._landmarker.detect(mp_image)
 
         # Call the landmarker on the frame to run hand detection and landmark extraction
         result = self._landmarker.detect_for_video(mp_image, timestamp_ms)
