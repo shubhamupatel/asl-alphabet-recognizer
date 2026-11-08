@@ -235,7 +235,7 @@ The hard part is telling a held I from the start of a J. There are two options:
 
 **Trade-offs accepted:**
 - Tilting the palm toward or away from the camera makes it look shorter, which slightly changes the scale
-- x and y are fractions of the frame's width and height, so hand shapes are slightly stretched in the numbers. This is consistent as long as data collection and the demo use the same webcam, but would matter with a camera whose frame has a different shape
+- x and y are fractions of the frame's width and height, so hand shapes are slightly stretched in the numbers. This is consistent as long as data collection and the demo use the same webcam, but would matter with a camera whose frame has a different shape. Resolved in D13, once D12 mixed square dataset images with webcam frames
 
 ### D10: Rotation: not normalized
 
@@ -293,6 +293,26 @@ The hard part is telling a held I from the start of a J. There are two options:
 - The dataset's square images and my webcam's frame shape stretch landmark values differently, so x and y must be converted to consistent units (revisits D9's trade-off)
 - Converting a folder of unrelated photos needs MediaPipe's IMAGE mode, so `asl/landmarks.py` must support it alongside VIDEO mode
 - The dataset (about 1 GB) stays out of GitHub, and its license must be checked before use
+
+### D13: Landmark units: pixels
+
+**Context:** MediaPipe reports x as a fraction of the image's width and y as a fraction of its height. Once D12 mixed square 200×200 dataset images with a non-square webcam frame, the same hand shape would produce differently proportioned numbers from each source.
+
+**Options considered:**
+1. Convert to pixels inside `extract()`: x × width, y × height, z × width
+2. Pass the frame's width and height into `features.py` and correct there
+3. Switch to MediaPipe's world landmarks (3D positions in meters)
+
+**Decision:** Option 1
+
+**Why:**
+- All three axes end up in the same unit regardless of camera. MediaPipe's z uses roughly the same scale as x, so it's multiplied by the width too
+- Knowledge of the frame size stays in `asl/landmarks.py`, the only module that has the frame
+- D9's normalization needs no changes, because dividing by palm length cancels out the starting unit
+- World landmarks would bring back the reasons they were passed over in D9
+
+**Trade-offs accepted:**
+- `extract()` now returns pixel coordinates instead of 0–1 fractions, so anything that used the old format had to be updated
 
 ## Open Decisions
 
