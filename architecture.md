@@ -35,6 +35,24 @@ Webcam frame
   → drawn onto the video frame
 ```
 
+## Project Structure
+
+```
+asl-alphabet-recognizer/
+├── asl/                  # building blocks: one module per pipeline stage
+│   ├── __init__.py
+│   ├── labels.py         # the letter labels (single source of truth)
+│   ├── landmarks.py      # MediaPipe hand landmark extraction
+│   ├── features.py       # normalization → 63-number feature vector
+│   └── model.py          # classifier definition
+├── collect_data.py       # webcam → labeled landmark samples
+├── train.py              # training loop + early stopping
+├── evaluate.py           # final test-set evaluation
+├── run_demo.py           # live webcam recognition
+├── data/                 # collected samples
+└── models/               # hand_landmarker.task + trained weights
+```
+
 ## Decision Log
 
 Each entry records the options considered, what was chosen, and why.
@@ -141,6 +159,25 @@ The hard part is telling a held I from the start of a J. There are two options:
 - The Tasks API needs a separate downloaded model file (`hand_landmarker.task`)
 - Its setup code is slightly more involved
 - Most older tutorials, and v1, use the legacy API, so their code won't work as-is
+
+### D6: Project structure: `asl` package + top-level scripts
+
+**Options considered:**
+1. Flat: all files in the top folder
+2. A package (`asl/`) for reusable building blocks, with runnable scripts in the top folder
+3. src layout: the package inside `src/`, installed with a `pyproject.toml` file
+
+**Decision:** Option 2
+
+**Why:**
+- Each pipeline stage gets its own module, so the code mirrors the pipeline overview one-to-one
+- Building blocks (imported) and scripts (run) are clearly separated
+- Extensions slot in as new modules, such as a sequence model for J and Z
+- No install step is needed: running a top-level script puts the top folder on Python's import path, so `import asl` works
+
+**Trade-offs accepted:**
+- Slightly more structure than a flat layout
+- Scripts must stay in the top folder, since moving them into a subfolder would break imports from `asl`
 
 ## Open Decisions
 
