@@ -272,7 +272,27 @@ The hard part is telling a held I from the start of a J. There are two options:
 **Trade-offs accepted:**
 - Correctness depends on MediaPipe's handedness label. A misidentified hand gets flipped wrongly and is likely misclassified
 - `extract()` returns the handedness along with the landmarks
-- MediaPipe's left/right labeling convention has to be verified on our non-mirrored webcam frames
+- MediaPipe's left/right labeling convention had to be verified. Live testing on our non-mirrored webcam frames confirmed the labels match the signer's real hands
+
+### D12: Training data: public dataset + own recordings
+
+**Options considered:**
+1. Record my own webcam data only
+2. Use a public dataset only (the Kaggle ASL Alphabet dataset: 87,000 images at 200×200 pixels, 29 classes)
+3. Both: the public dataset for volume, plus my own webcam recordings, with the test set drawn from my own recordings
+
+**Decision:** Option 3
+
+**Why:**
+- The public dataset provides tens of thousands of samples without recording time, plus a second signer's hands
+- My own recordings match the demo's real conditions: my webcam, its frame shape, and VIDEO mode
+- Drawing the test set from my own recordings means the final score measures real-world performance, rather than performance on public images that may be near-duplicates of training images
+
+**Trade-offs accepted:**
+- The Kaggle images were captured under controlled conditions and reportedly from a single signer, so they add volume more than variety
+- The dataset's square images and my webcam's frame shape stretch landmark values differently, so x and y must be converted to consistent units (revisits D9's trade-off)
+- Converting a folder of unrelated photos needs MediaPipe's IMAGE mode, so `asl/landmarks.py` must support it alongside VIDEO mode
+- The dataset (about 1 GB) stays out of GitHub, and its license must be checked before use
 
 ## Open Decisions
 
