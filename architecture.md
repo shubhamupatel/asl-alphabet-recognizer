@@ -197,6 +197,26 @@ The hard part is telling a held I from the start of a J. There are two options:
 - Every frame needs an increasing timestamp, which is handled inside `asl/landmarks.py`
 - If processing is slow, the loop waits on it. LIVE_STREAM remains an option if the demo feels laggy, and the change would be contained within `asl/landmarks.py`
 
+### D8: Landmark jitter: leave raw landmarks
+
+**Context:** Testing showed accurate landmarks across lighting, angles, and hand shapes, with slight frame-to-frame jitter while the hand is held still. Causes include camera sensor noise (worse in dim light), lighting flicker, and natural hand movement.
+
+**Options considered:**
+1. Leave landmarks raw
+2. Smooth landmarks over time, such as averaging each point with its recent positions
+3. Leave landmarks raw, but smooth the predictions in the demo
+
+**Decision:** Option 1, with option 3 held in reserve for the demo if predictions flicker
+
+**Why:**
+- Each training sample reflects exactly one frame, with no mixing between frames
+- Jitter acts as natural variation in the training data, so the model learns to tolerate it
+- Smoothing landmarks would contaminate training data: after switching letters during collection, smoothed values would blend the previous hand shape into samples saved under the new label
+- Smoothing would make landmark extraction depend on past frames, breaking the "one frame at a time" design principle
+
+**Trade-offs accepted:**
+- Demo predictions may flicker between similar letters, such as M and N. If they do, prediction smoothing (option 3) addresses it without touching the training data
+
 ## Open Decisions
 
 None at the moment.
