@@ -11,6 +11,8 @@ def normalize_landmarks(landmarks):
 
     Positions become relative to the wrist and are divided by palm length, so the same
     hand shape gives the same numbers anywhere in the frame and at any distance.
+    Rotation is deliberately left alone, because hand orientation distinguishes some
+    letters, such as H from U (see D10).
     """
     centered = landmarks - landmarks[WRIST]
     palm_length = np.linalg.norm(centered[MIDDLE_FINGER_MCP])

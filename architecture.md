@@ -237,6 +237,23 @@ The hard part is telling a held I from the start of a J. There are two options:
 - Tilting the palm toward or away from the camera makes it look shorter, which slightly changes the scale
 - x and y are fractions of the frame's width and height, so hand shapes are slightly stretched in the numbers. This is consistent as long as data collection and the demo use the same webcam, but would matter with a camera whose frame has a different shape
 
+### D10: Rotation: not normalized
+
+**Options considered:**
+1. Leave rotation alone
+2. Normalize rotation, by rotating every hand so the wrist-to-middle-knuckle direction points straight up
+3. Correct only small tilts, below some threshold angle
+
+**Decision:** Option 1
+
+**Why:**
+- In ASL, hand orientation is part of what makes a letter. Several pairs share a handshape and differ mainly in orientation: H and U, G and Q, K and P
+- Rotation normalization would make each of those pairs identical or nearly so, and no classifier could tell them apart
+- Correcting only small tilts needs an arbitrary threshold. Letters near it would be corrected inconsistently, and deciding which tilts are accidental would require already knowing the letter
+
+**Trade-offs accepted:**
+- Natural, unintended tilt stays in the data, so the model has to learn to tolerate it. Training data should include natural variation in tilt
+
 ## Open Decisions
 
 None at the moment.
