@@ -20,6 +20,8 @@ DATASET_DIR = PROJECT_DIR / "data" / "raw" / "kaggle_asl_alphabet" / "asl_alphab
 OUTPUT_PATH = PROJECT_DIR / "data" / "processed" / "kaggle.npz"
 # Stored with every sample so it keeps its origin after merging with other sources (D17)
 SOURCE = "kaggle"
+# The Kaggle signer is treated as right-handed (D19), so no sample from this source is mirrored
+SIGNER_IS_LEFT_HANDED = False
 
 
 def main():
@@ -50,16 +52,17 @@ def main():
                 if image is None:
                     continue
 
-                # Extract the raw (21, 3) pixel landmarks and handedness
+                # Extract the raw (21, 3) pixel landmarks
                 detection = extractor.extract(image)
                 # Skip photos where MediaPipe couldn't find a hand
                 if detection is None:
                     continue
 
                 # Record this sample's four pieces of information
-                landmarks, is_left_hand = detection
+                # Keep the landmarks. MediaPipe's per-frame handedness guess is ignored (D19)
+                landmarks, _ = detection
                 all_landmarks.append(landmarks)
-                left_hand_flags.append(is_left_hand)
+                left_hand_flags.append(SIGNER_IS_LEFT_HANDED)
                 letters.append(letter)
                 sources.append(SOURCE)
                 found += 1

@@ -34,6 +34,8 @@ def landmarks_to_features(landmarks, is_left_hand):
 
     Normalizes position and size (D9), mirrors left hands to right-hand form (D11),
     and flattens the result. Keeps z (D14) and the wrist's zeros (D15).
+    
+    is_left_hand is the signer's declared dominant hand (D19), not MediaPipe's per-frame guess.
     """
     normalized = normalize_landmarks(landmarks)
     if is_left_hand:
