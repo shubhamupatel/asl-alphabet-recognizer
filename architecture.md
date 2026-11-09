@@ -277,6 +277,8 @@ The hard part is telling a held I from the start of a J. There are two options:
 - `extract()` returns the handedness along with the landmarks
 - MediaPipe's left/right labeling convention had to be verified. Live testing on our non-mirrored webcam frames confirmed the labels match the signer's real hands
 
+**Revised by D19:** Which hands get mirrored is now decided by the signer's declared dominant hand, not MediaPipe's per-frame label. The mirroring itself is unchanged
+
 ### D12: Training data: public dataset + own recordings
 
 **Options considered:**
@@ -415,6 +417,27 @@ The hard part is telling a held I from the start of a J. There are two options:
 - Files aren't human-readable, so inspecting one takes a line of Python
 
 **Note:** Letters are stored as text ("K"), not as class indices. Indices shift if the label set changes (adding J would move K from 9 to 10), so they're computed at load time with `LETTER_TO_INDEX`
+
+### D19: Handedness: declared per signer, not detected per frame
+
+**Context:** After converting the Kaggle dataset, 4.9% of samples were labeled as left hands, even though the dataset reportedly comes from a single right-handed signer. The left labels clustered in letters where handedness is hard to see: M (25%), C (20%), and O (14%), versus under 1% for open, palm-forward letters like L, Y, and B. That pattern points to MediaPipe misjudging handedness, which under D11 would wrongly mirror those samples, and could do the same in the live demo.
+
+**Options considered:**
+1. Keep trusting MediaPipe's per-frame label (D11 as originally designed)
+2. Use a declared dominant hand: Kaggle data is treated as right-handed, my recordings use the hand I record with, and the demo takes a setting
+3. Mirror augmentation: train on every sample plus its mirror image, and ignore handedness entirely
+
+**Decision:** Option 2
+
+**Why:**
+- A signer's dominant hand doesn't change from frame to frame, so it should be stated once rather than guessed every frame. This removes the error source entirely
+- Every hand still reaches the classifier in one standard right-hand form, keeping D11's main benefit
+- Mirror augmentation would give up that standard form, making the model learn two mirror-image shapes per letter
+
+**Trade-offs accepted:**
+- The signer's hand must be declared, so the demo needs a setting
+- The Kaggle signer is assumed to be right-handed throughout. About 95% of samples being labeled right-handed strongly supports this
+- `extract()` still returns MediaPipe's per-frame handedness, but only for diagnostics. It is never used for features
 
 ## Open Decisions
 
