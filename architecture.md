@@ -480,6 +480,23 @@ The hard part is telling a held I from the start of a J. There are two options:
 **Trade-offs accepted:**
 - Git can't show meaningful diffs for binary files, though each session file is written once and never edited
 
+### D22: Recording preview: mirror the display only
+
+**Options considered:**
+1. No mirroring
+2. Mirror the frame before extracting landmarks
+3. Mirror only the displayed image, after extracting landmarks
+
+**Decision:** Option 3
+
+**Why:**
+- A mirrored preview works like a bathroom mirror, so signing while watching feels natural
+- Landmarks always come from the original, unmirrored frame. Mirroring before extraction would give every recorded sample mirror-image geometry, contradicting the Kaggle data's right hands while still being declared right-handed
+- Display transformations must never leak into the data
+
+**Trade-offs accepted:**
+- Drawing order matters: landmarks are drawn before mirroring so they stay on the hand, and text is drawn after so it reads normally
+
 ## Open Decisions
 
 None at the moment.
