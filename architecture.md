@@ -439,6 +439,26 @@ The hard part is telling a held I from the start of a J. There are two options:
 - The Kaggle signer is assumed to be right-handed throughout. About 95% of samples being labeled right-handed strongly supports this
 - `extract()` still returns MediaPipe's per-frame handedness, but only for diagnostics. It is never used for features
 
+### D20: Recording method: countdown, then automatic burst
+
+**Options considered:**
+1. One sample per keypress
+2. Continuous capture while recording is toggled on
+3. Continuous capture, keeping only every Nth frame
+4. Press a letter's key, wait through a short countdown, then record automatically until a fixed number of frames with a detected hand are saved
+
+**Decision:** Option 4
+
+**Why:**
+- The countdown keeps transition frames (the hand still forming the sign) out of the data, avoiding mislabeled samples
+- Every letter gets the same number of samples, working against the class imbalance seen in the Kaggle data
+- Counting detected samples instead of seconds means letters MediaPipe sometimes loses, like M and N, still reach the full count
+- The hand is free during the burst, so tilt and distance can be varied for natural variety (D10)
+
+**Trade-offs accepted:**
+- The script has to track three states: idle, counting down, and recording
+- Consecutive frames are nearly identical, so samples from one burst aren't independent. Data splits must keep each recording session together (see D17)
+
 ## Open Decisions
 
 None at the moment.
