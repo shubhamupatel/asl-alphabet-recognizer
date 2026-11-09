@@ -1,6 +1,7 @@
-"""Record labeled hand landmark samples from the webcam (see D20 and D21 in architecture.md).
+"""Record labeled hand landmark samples from the webcam (see D20–D23 in architecture.md).
 
-Press a letter key to record a burst of that letter. Press Esc to save the session and quit.
+Press a letter key to record a burst of that letter. Backspace cancels the burst in
+progress or undoes the last finished one. Press Esc to save the session and quit.
 """
 
 import argparse
@@ -19,8 +20,12 @@ PROJECT_DIR = Path(__file__).resolve().parent
 RECORDINGS_DIR = PROJECT_DIR / "data" / "recordings"
 # Time to form the sign before recording starts, so transition frames aren't saved (D20)
 COUNTDOWN_SECONDS = 2.0
+# Each letter gets this many bursts per session (D23)
+BURSTS_PER_LETTER = 2
 # Esc quits, because "q" is a letter we need to record
 ESC_KEY = 27
+# Backspace cancels the burst in progress, or undoes the last finished one
+BACKSPACE_KEY = 8
 
 # The three recording states (D20)
 IDLE = "idle"
@@ -33,6 +38,24 @@ def key_to_letter(key):
     letter = chr(key).upper()
     return letter if letter in LETTERS else None
 
+
+def count_bursts(finished_bursts, letter):
+    """Return how many finished bursts this session has for one letter."""
+    return sum(1 for burst_letter, _ in finished_bursts if burst_letter == letter)
+
+
+def letters_still_needed(finished_bursts):
+    """Return the letters that still need bursts this session, as one string like "LU"."""
+    return "".join(
+        letter for letter in LETTERS if count_bursts(finished_bursts, letter) < BURSTS_PER_LETTER
+    )
+
+
+def count_samples(finished_bursts):
+    """Return the total number of samples across all finished bursts."""
+    return sum(len(burst) for _, burst in finished_bursts)
+
+
 def parse_args():
     """Read the session name, signing hand, and burst size from the command line."""
     parser = argparse.ArgumentParser(description="Record labeled hand landmark samples from the webcam.")
@@ -41,11 +64,19 @@ def parse_args():
     parser.add_argument("--samples", type=int, default=200, help="samples to record per burst (default: 200)")
     return parser.parse_args()
 
-def save_session(output_path, all_landmarks, letters, is_left_hand, session):
-    """Save the completed bursts to this session's file (D18, D21). Saves nothing if no burst finished."""
-    if not letters:
-        print("No completed bursts, so nothing was saved.")
+
+def save_session(output_path, finished_bursts, is_left_hand, session):
+    """Save the finished bursts to this session's file (D18, D21). Saves nothing if no burst finished."""
+    if not finished_bursts:
+        print("No finished bursts, so nothing was saved.")
         return
+
+    # Flatten the bursts into one list of samples and a matching list of letters
+    all_landmarks = []
+    letters = []
+    for letter, burst in finished_bursts:
+        all_landmarks.extend(burst)
+        letters.extend([letter] * len(burst))
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
@@ -56,6 +87,7 @@ def save_session(output_path, all_landmarks, letters, is_left_hand, session):
         sources=np.full(len(letters), session),
     )
     print(f"Saved {len(letters)} samples to {output_path}")
+
 
 def main():
     args = parse_args()
@@ -68,15 +100,14 @@ def main():
     # The declared hand applies to every sample in this session (D19)
     is_left_hand = args.hand == "left"
 
-    # Session-level lists, which only grow when a burst finishes
-    all_landmarks = []
-    letters = []
+    # Each finished burst is kept as a (letter, samples) pair, so the last one can be undone
+    finished_bursts = []
 
     # Recording state (D20): idle → countdown → recording → idle
     state = IDLE
     current_letter = None
     countdown_start = 0.0
-    burst = []
+    current_burst = []
 
     capture = cv2.VideoCapture(0)
     try:
@@ -97,36 +128,60 @@ def main():
                         cv2.circle(frame, (int(x), int(y)), 4, (0, 255, 0), -1)
                 display = cv2.flip(frame, 1)
 
-                # Status text is drawn after mirroring so it reads normally
+                # Line 1: what the script is doing right now
                 if state == IDLE:
-                    status = f"Press a letter to record ({len(letters)} samples this session)"
+                    status = f"Press a letter to record ({count_samples(finished_bursts)} samples this session)"
                 elif state == COUNTDOWN:
                     remaining = COUNTDOWN_SECONDS - (time.monotonic() - countdown_start)
                     status = f"Get ready: {current_letter} in {remaining:.1f}s"
                 else:
-                    status = f"Recording {current_letter}: {len(burst)}/{args.samples}"
+                    status = f"Recording {current_letter}: {len(current_burst)}/{args.samples}"
                 if detection is None:
                     status += "  (no hand)"
+
+                # Line 2: which letters still need bursts, so none get skipped
+                needed = letters_still_needed(finished_bursts)
+                progress = f"Still needed: {needed}" if needed else "All letters done. Press Esc to save"
+
+                # Text is drawn after mirroring so it reads normally
                 cv2.putText(display, status, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                cv2.putText(display, progress, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
                 cv2.imshow("Recording (Esc to save and quit)", display)
                 key = cv2.waitKey(1) & 0xFF
                 if key == ESC_KEY:
                     break
 
+                if key == BACKSPACE_KEY:
+                    if state != IDLE:
+                        # Cancel the burst in progress. Its samples never joined the session
+                        print(f"Cancelled {current_letter} burst")
+                        state = IDLE
+                    elif finished_bursts:
+                        # Undo the most recently finished burst
+                        undone_letter, _ = finished_bursts.pop()
+                        print(f"Undid last {undone_letter} burst ({count_samples(finished_bursts)} samples now)")
+                    continue
+
                 if state == IDLE:
                     # A letter key starts a countdown for that letter. Other keys are ignored
                     letter = key_to_letter(key)
                     if letter is not None:
-                        current_letter = letter
-                        countdown_start = time.monotonic()
-                        state = COUNTDOWN
-                        print(f"Get ready: {current_letter}")
+                        # Letters that already have their bursts are ignored, keeping counts equal (D20)
+                        if count_bursts(finished_bursts, letter) >= BURSTS_PER_LETTER:
+                            print(f"{letter} already has {BURSTS_PER_LETTER} bursts (Backspace undoes the last burst)")
+                        else:
+                            current_letter = letter
+                            countdown_start = time.monotonic()
+                            state = COUNTDOWN
+                            print(f"Get ready: {current_letter}")
 
                 elif state == COUNTDOWN:
                     # Start recording once the countdown has run out
                     if time.monotonic() - countdown_start >= COUNTDOWN_SECONDS:
-                        burst = []
+                        # A brand-new list, not current_burst.clear(): the previous burst's list is
+                        # stored inside finished_bursts, and clearing it would erase those samples
+                        current_burst = []
                         state = RECORDING
                         print(f"Recording {current_letter}...")
 
@@ -135,18 +190,17 @@ def main():
                     # MediaPipe's handedness guess is ignored in favor of the declared hand (D19)
                     if detection is not None:
                         landmarks, _ = detection
-                        burst.append(landmarks)
-                    # A finished burst joins the session, then we go back to waiting for a key
-                    if len(burst) >= args.samples:
-                        all_landmarks.extend(burst)
-                        letters.extend([current_letter] * len(burst))
+                        current_burst.append(landmarks)
+                    # A finished burst joins the session as one (letter, samples) pair
+                    if len(current_burst) >= args.samples:
+                        finished_bursts.append((current_letter, current_burst))
                         state = IDLE
-                        print(f"Finished {current_letter}: {len(letters)} samples so far this session")
+                        print(f"Finished {current_letter}: {count_samples(finished_bursts)} samples so far this session")
     finally:
         # Runs however the loop ends: Esc, a camera failure, Ctrl+C, or a crash
         capture.release()
         cv2.destroyAllWindows()
-        save_session(output_path, all_landmarks, letters, is_left_hand, args.session)
+        save_session(output_path, finished_bursts, is_left_hand, args.session)
 
 
 if __name__ == "__main__":
