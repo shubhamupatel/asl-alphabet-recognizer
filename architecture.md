@@ -614,6 +614,27 @@ The hard part is telling a held I from the start of a J. There are two options:
 
 **Note:** Sources are returned alongside features and labels because D25's sampler weights each sample by its source and letter. The declared hand is used up by the feature conversion (D19) and isn't returned
 
+### D28: Batch size: 64
+
+**Options considered:**
+1. 32
+2. 64
+3. 256
+4. The full training set as one batch
+
+**Decision:** 64
+
+**Why:**
+- Mini-batches balance gradient accuracy against the number of updates. 64 is the most common starting point, at about 940 steps per epoch
+- With a model this small, a batch of 32 spends most of each step on fixed overhead, so epochs run slowly on a CPU
+- Larger batches give fewer updates per epoch and less of the gradient noise that acts as mild regularization. A full batch gives only one update per pass through the data
+- With balanced sampling (D25), each batch holds about 32 samples from my recordings and 32 from Kaggle
+
+**Trade-offs accepted:**
+- 64 is a starting point, not a measured optimum. It's a constant at the top of `train.py`, so it can be tuned on validation data (never test data)
+
+**Note:** Batch size matters only for training. Validation reuses the same value for convenience: nothing learns during validation, and no layer's output depends on the rest of its batch, so it changes speed but not results
+
 ## Open Decisions
 
 None at the moment.
