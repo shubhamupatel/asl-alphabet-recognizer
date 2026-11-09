@@ -565,7 +565,7 @@ The hard part is telling a held I from the start of a J. There are two options:
 
 **Trade-offs accepted:**
 - My samples are drawn about 11.5 times as often as Kaggle's on average, so the model sees the same near-duplicate bursts repeatedly and could memorize them. Dropout (D24) and early stopping on `val1` guard against this
-- Sampling is done with replacement, so an epoch is no longer one pass over every sample, and the number of draws per epoch becomes a setting of its own
+- Sampling is done with replacement, so an epoch is no longer one pass over every sample, and the number of draws per epoch becomes a setting of its own. Resolved in D29
 - Equal weight per source is a starting point, not a measured optimum. The ratio between sources could be tuned on validation data later
 
 **Note:** Only training data is rebalanced. `val1` comes from a single source with equal letter counts, so it is evaluated as-is
@@ -628,12 +628,34 @@ The hard part is telling a held I from the start of a J. There are two options:
 - Mini-batches balance gradient accuracy against the number of updates. 64 is the most common starting point, at about 940 steps per epoch
 - With a model this small, a batch of 32 spends most of each step on fixed overhead, so epochs run slowly on a CPU
 - Larger batches give fewer updates per epoch and less of the gradient noise that acts as mild regularization. A full batch gives only one update per pass through the data
-- With balanced sampling (D25), each batch holds about 32 samples from my recordings and 32 from Kaggle
+- With balanced sampling (D25), each batch holds about 32 samples from my recordings
 
 **Trade-offs accepted:**
 - 64 is a starting point, not a measured optimum. It's a constant at the top of `train.py`, so it can be tuned on validation data (never test data)
 
 **Note:** Batch size matters only for training. Validation reuses the same value for convenience: nothing learns during validation, and no layer's output depends on the rest of its batch, so it changes speed but not results
+
+### D29: Draws per epoch: the full training set's size
+
+**Context:** D25's weighted sampler draws with replacement, so an epoch no longer means one pass over every sample. The number of draws per epoch sets how many gradient steps happen between validation checks.
+
+**Options considered:**
+1. The full training set's size (60,168 draws)
+2. Twice my recordings' size (9,600 draws)
+3. Twice Kaggle's size (110,736 draws)
+
+**Decision:** Option 1
+
+**Why:**
+- A balanced epoch has the same number of steps as a natural-mix epoch (about 940, D28), so epoch counts, patience, and learning curves compare directly between D25's two modes
+- Validation runs at the same pace in both modes
+- Shorter epochs would make validating all of `val1` a large share of the run. Longer ones would draw each of my samples around 11 times between checks, giving the model time to memorize my bursts before validation notices
+
+**Trade-offs accepted:**
+- Each Kaggle sample is drawn about 0.5 times per epoch, so roughly 58% go undrawn in any single epoch. This evens out across epochs: after five, only about 7% have never been drawn
+- Each of my samples is drawn about 6 times per epoch
+
+**Note:** The count is the training set's actual size, measured at load time rather than hardcoded, so it adjusts automatically if more training sessions are added
 
 ## Open Decisions
 
