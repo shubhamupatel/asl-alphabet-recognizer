@@ -52,7 +52,8 @@ asl-alphabet-recognizer/
 ├── run_demo.py           # live webcam recognition
 ├── data/
 │   ├── raw/              # downloaded datasets, never modified (not committed)
-│   └── processed/        # landmark .npz files, one per source
+│   ├── processed/        # landmark files derived from raw/, regenerable (not committed)
+│   └── recordings/       # my webcam recordings, one .npz per session (committed)
 └── models/               # hand_landmarker.task + trained weights
 ```
 
@@ -458,6 +459,26 @@ The hard part is telling a held I from the start of a J. There are two options:
 **Trade-offs accepted:**
 - The script has to track three states: idle, counting down, and recording
 - Consecutive frames are nearly identical, so samples from one burst aren't independent. Data splits must keep each recording session together (see D17)
+
+### D21: Recording storage: `data/recordings/`, committed
+
+**Context:** Recording saves only landmarks, never webcam frames, so a lost recording can't be regenerated. Unlike `kaggle.npz`, which can be rebuilt from the raw photos, recordings are original data.
+
+**Options considered:**
+1. Save in `data/processed/`, alongside `kaggle.npz`
+2. Save in a separate `data/recordings/` folder, committed to GitHub
+3. Save in `data/recordings/` without committing
+
+**Decision:** Option 2
+
+**Why:**
+- Original and derived data stay separate, so clearing out regenerable files can never delete recordings
+- GitHub acts as a backup
+- Anyone cloning the repo can retrain the model from the same data
+- It's my own data with no license restrictions, the files are small (around 1–2 MB per session), and they contain only hand-joint coordinates: no images, face, or background
+
+**Trade-offs accepted:**
+- Git can't show meaningful diffs for binary files, though each session file is written once and never edited
 
 ## Open Decisions
 
