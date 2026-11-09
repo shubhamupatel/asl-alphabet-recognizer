@@ -61,7 +61,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Record labeled hand landmark samples from the webcam.")
     parser.add_argument("session", help="name for this recording session, such as session1")
     parser.add_argument("--hand", choices=["right", "left"], required=True, help="the hand you're signing with")
-    parser.add_argument("--samples", type=int, default=200, help="samples to record per burst (default: 200)")
+    parser.add_argument("--samples", type=int, default=100, help="samples to record per burst (default: 100)")
     return parser.parse_args()
 
 
