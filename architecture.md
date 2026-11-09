@@ -497,6 +497,31 @@ The hard part is telling a held I from the start of a J. There are two options:
 **Trade-offs accepted:**
 - Drawing order matters: landmarks are drawn before mirroring so they stay on the hand, and text is drawn after so it reads normally
 
+### D23: Recording plan: separate sessions for training, validation, and test
+
+**Options considered:**
+1. One session as the test set, with validation taken from Kaggle data
+2. Three sessions: one each for training, validation, and test
+3. Four or more sessions, with two or more for training
+
+**Decision:** Option 2, optionally with an extra non-dominant-hand session used only as an extra test of left-hand mirroring (D11, D19)
+
+**Why:**
+- Every role gets data from the real demo setup (my webcam, my hand). Validation needs this as much as test, since early stopping and the z ablation (D14) are tuned against it
+- Assigning whole sessions to roles makes it impossible for near-duplicate frames to leak between training and evaluation (D20)
+- The model trains on my hand in addition to the Kaggle signer's
+
+**Plan:**
+- Kaggle data is used for training only
+- In each session, every letter is recorded in two bursts of 100 samples (4,800 samples per session), repositioning between bursts, since most of a burst's variety comes from where it starts
+- Within each burst: slowly vary tilt, distance, and position in the frame
+- Between sessions: vary lighting, background, time of day, and clothing. The test session uses conditions the training session didn't have, while staying realistic for the demo
+- Session names state their role: `train1`, `val1`, `test1`, and `test_left1`
+
+**Trade-offs accepted:**
+- Roughly 30 minutes of recording, ideally spread across different days
+- My training data (about 4,800 samples) is small next to Kaggle's 55,368, which may need weighting during training
+
 ## Open Decisions
 
 None at the moment.
