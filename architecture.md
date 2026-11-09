@@ -44,6 +44,7 @@ asl-alphabet-recognizer/
 │   ├── labels.py         # the letter labels (single source of truth)
 │   ├── landmarks.py      # MediaPipe hand landmark extraction
 │   ├── features.py       # normalization → 63-number feature vector
+│   ├── data.py           # saved .npz files → features and labels
 │   └── model.py          # classifier definition
 ├── prepare_kaggle_data.py  # Kaggle photos → landmark data (data/processed/kaggle.npz)
 ├── collect_data.py       # webcam → labeled landmark samples
@@ -568,6 +569,50 @@ The hard part is telling a held I from the start of a J. There are two options:
 - Equal weight per source is a starting point, not a measured optimum. The ratio between sources could be tuned on validation data later
 
 **Note:** Only training data is rebalanced. `val1` comes from a single source with equal letter counts, so it is evaluated as-is
+
+### D26: Data loading: a shared `asl/data.py` module
+
+**Context:** `train.py` and `evaluate.py` both turn saved `.npz` files into features and labels: training and validation data in one, test data in the other.
+
+**Options considered:**
+1. Loading code inside `train.py`, with `evaluate.py` keeping its own copy
+2. A new `asl/data.py` module, imported by both scripts
+3. `evaluate.py` importing the loading function from `train.py`
+
+**Decision:** Option 2
+
+**Why:**
+- Training, validation, and test data all go through one loading path, so they can never be processed differently. This extends D17's single path to features to loading as a whole
+- Separate copies could drift apart silently. For example, dropping z for the D14 ablation in only one copy would feed the test set different features from the ones the model trained on
+- Reusable building blocks belong in `asl/` and runnable scripts in the top folder (D6). Importing from `train.py` would blur that split and make evaluation depend on the training script
+
+**Trade-offs accepted:**
+- One more module to maintain
+
+**Note:** The live demo doesn't use this module. It gets landmarks straight from the webcam and calls `landmarks_to_features` directly
+
+### D27: Data module output: NumPy arrays, with DataLoaders built in each script
+
+**Context:** D26 made `asl/data.py` the shared loader for `train.py` and `evaluate.py`, but the two scripts need their data batched differently. Training draws from two files through a weighted sampler or plain shuffling (D25), while validation and test each read one file in plain batches.
+
+**Options considered:**
+1. Return ready-made training and validation DataLoaders
+2. Return NumPy arrays of features, labels, and sources, and let each script build its own tensors and DataLoaders
+3. A custom PyTorch `Dataset` class
+
+**Decision:** Option 2
+
+**Why:**
+- The module has one job, turning files into arrays, so it changes only when the saved format changes, not whenever training is tuned (the single-responsibility principle)
+- Sampling, batch size, and D25's switch are training settings, so they belong in `train.py`. `evaluate.py` needs plain batches of `test1` alone, which a ready-made training and validation pair can't provide
+- Roles stay with the scripts that assign them (D23). The module loads whatever files it's given and never decides which are training or validation
+- A custom `Dataset` mainly helps with data too large to hold in memory. All the features fit in about 15 MB, and PyTorch's built-in `TensorDataset` already handles in-memory data
+- Like `features.py`, the module needs only NumPy, so saved data can be inspected without loading PyTorch
+
+**Trade-offs accepted:**
+- Each script repeats a few lines of tensor and DataLoader setup
+
+**Note:** Sources are returned alongside features and labels because D25's sampler weights each sample by its source and letter. The declared hand is used up by the feature conversion (D19) and isn't returned
 
 ## Open Decisions
 
