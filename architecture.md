@@ -142,7 +142,7 @@ The hard part is telling a held I from the start of a J. There are two options:
 
 **Why:**
 - The webcam is needed for both data collection and the live demo. Colab can only reach a webcam through an awkward browser workaround
-- The model has roughly 11k parameters, so a laptop CPU is able to train it comfortably. Colab's free GPU offers no real benefit here
+- The model has about 18,000 parameters (D24), so a laptop CPU is able to train it comfortably. Colab's free GPU offers no real benefit here
 - Everything lives in one project folder that can go on GitHub
 
 **Trade-offs accepted:** I manage the installation and debug environment issues myself.
@@ -504,7 +504,7 @@ The hard part is telling a held I from the start of a J. There are two options:
 2. Three sessions: one each for training, validation, and test
 3. Four or more sessions, with two or more for training
 
-**Decision:** Option 2, optionally with an extra non-dominant-hand session used only as an extra test of left-hand mirroring (D11, D19)
+**Decision:** Option 2, plus an optional non-dominant-hand session used only as an extra test of left-hand mirroring (D11, D19)
 
 **Why:**
 - Every role gets data from the real demo setup (my webcam, my hand). Validation needs this as much as test, since early stopping and the z ablation (D14) are tuned against it
@@ -521,6 +521,25 @@ The hard part is telling a held I from the start of a J. There are two options:
 **Trade-offs accepted:**
 - Roughly 30 minutes of recording, ideally spread across different days
 - My training data (about 4,800 samples) is small next to Kaggle's 55,368, which may need weighting during training
+
+### D24: Model architecture: two hidden layers with ReLU and dropout
+
+**Options considered:**
+1. One hidden layer: 63 → 128 → 24
+2. Two hidden layers: 63 → 128 → 64 → 24, with dropout
+3. Deeper and wider, such as three hidden layers of 256
+
+**Decision:** Option 2, with ReLU activations and a 20% dropout rate
+
+**Why:**
+- Without a non-linear activation, stacked linear layers collapse into a single linear layer, so ReLU goes between layers. ReLU passes gradients through intact for positive inputs, avoiding the vanishing gradients of sigmoid and tanh
+- Two hidden layers can build combinations of combinations, which subtle letters (M/N/T, A/S/E) may need. One layer risks underfitting
+- Dropout counters the extra capacity's tendency to memorize, which matters because the Kaggle data contains many near-duplicate frames. Option 3 would be overkill for 63 inputs and invite memorization
+- At about 18,000 parameters, it still trains in minutes on a laptop CPU
+
+**Trade-offs accepted:**
+- The hidden sizes (128, 64) and dropout rate are informed starting guesses. They're constructor arguments, so they can be tuned on validation data (never test data)
+- The model outputs raw scores (logits). Softmax is applied only when a confidence is needed, since PyTorch's cross-entropy loss applies it internally
 
 ## Open Decisions
 
