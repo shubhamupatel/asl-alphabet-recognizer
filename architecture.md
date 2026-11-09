@@ -520,7 +520,7 @@ The hard part is telling a held I from the start of a J. There are two options:
 
 **Trade-offs accepted:**
 - Roughly 30 minutes of recording, ideally spread across different days
-- My training data (about 4,800 samples) is small next to Kaggle's 55,368, which may need weighting during training
+- My training data (about 4,800 samples) is small next to Kaggle's 55,368, which may need weighting during training. Resolved in D25
 
 ### D24: Model architecture: two hidden layers with ReLU and dropout
 
@@ -540,6 +540,34 @@ The hard part is telling a held I from the start of a J. There are two options:
 **Trade-offs accepted:**
 - The hidden sizes (128, 64) and dropout rate are informed starting guesses. They're constructor arguments, so they can be tuned on validation data (never test data)
 - The model outputs raw scores (logits). Softmax is applied only when a confidence is needed, since PyTorch's cross-entropy loss applies it internally
+
+### D25: Training data imbalance: weighted sampling, with the natural mix as a baseline
+
+**Context:** Kaggle provides 55,368 training samples and `train1` provides 4,800, so about 92% of every shuffled batch, and of every gradient step, comes from Kaggle. The model minimizes the average loss, so wherever the two sources disagree it favors Kaggle, the source less like the demo. Kaggle's letters are also uneven, since MediaPipe found fewer hands in some letters' photos (M and N especially), while my recordings have equal counts per letter (D20).
+
+**Options considered:**
+1. Train on the natural mix
+2. Weighted sampling: draw training batches so every source and every letter comes up equally often
+3. Loss weighting: see every sample once per epoch, but scale each sample's loss by how rare its group is
+4. Undersample Kaggle to the size of my recordings
+5. Pretrain on Kaggle, then fine-tune on my recordings
+
+**Decision:** Option 2, with option 1 kept as a switchable baseline
+
+**Why:**
+- One mechanism fixes both imbalances: each sample is weighted by 1 / (size of its source-and-letter group), so every source and every letter is drawn equally often
+- The loss function and training loop stay unchanged, since balancing happens entirely in which samples get drawn
+- Loss weighting would put large weights on a few samples per batch, making gradient steps jumpier, and PyTorch's built-in class weights cover letters but not sources
+- Undersampling throws away about 91% of the Kaggle data
+- Fine-tuning adds a second training stage with its own hyperparameters, and risks overwriting what Kaggle taught (catastrophic forgetting)
+- How much the imbalance actually hurts can only be measured, so the natural mix stays available and the two are compared on validation data (never test data)
+
+**Trade-offs accepted:**
+- My samples are drawn about 11.5 times as often as Kaggle's on average, so the model sees the same near-duplicate bursts repeatedly and could memorize them. Dropout (D24) and early stopping on `val1` guard against this
+- Sampling is done with replacement, so an epoch is no longer one pass over every sample, and the number of draws per epoch becomes a setting of its own
+- Equal weight per source is a starting point, not a measured optimum. The ratio between sources could be tuned on validation data later
+
+**Note:** Only training data is rebalanced. `val1` comes from a single source with equal letter counts, so it is evaluated as-is
 
 ## Open Decisions
 
