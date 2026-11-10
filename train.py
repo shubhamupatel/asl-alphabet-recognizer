@@ -14,6 +14,7 @@ from torch import nn
 from torch.utils.data import DataLoader, TensorDataset, WeightedRandomSampler
 
 from asl.data import load_files
+from asl.labels import LETTERS
 from asl.model import LetterClassifier
 
 # Anchor paths to this script's folder so it runs correctly from anywhere
@@ -33,6 +34,10 @@ LEARNING_RATE = 0.001
 PATIENCE = 5
 # Safety net in case tiny improvements keep resetting the patience counter (D31)
 MAX_EPOCHS = 100
+# Every run overwrites this file (D32)
+MODEL_PATH = PROJECT_DIR / "models" / "letter_classifier.pt"
+# The model's constructor settings (D24), saved with the weights so the model can be rebuilt exactly (D32)
+MODEL_SETTINGS = {"first_hidden": 128, "second_hidden": 64, "dropout": 0.2}
 
 
 def parse_args():
@@ -134,7 +139,7 @@ def main():
     val_dataset = TensorDataset(torch.from_numpy(val_features), torch.from_numpy(val_labels))
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
 
-    model = LetterClassifier()
+    model = LetterClassifier(**MODEL_SETTINGS)
     # Takes raw scores (logits) and applies softmax internally (D24)
     loss_fn = nn.CrossEntropyLoss()
     # The optimizer gets direct access to every weight and bias the model tracks
@@ -171,6 +176,22 @@ def main():
     if epochs_without_improvement < PATIENCE:
         print(f"Reached the {MAX_EPOCHS}-epoch limit")
     print(f"Best: epoch {best_epoch}, val loss {best_val_loss:.4f}, val accuracy {best_val_accuracy:.1%}")
+
+    checkpoint = {
+        "weights": best_weights,
+        "model_settings": MODEL_SETTINGS,
+        # The order of LETTERS is what each of the 24 outputs means, so it travels with the weights
+        "letters": LETTERS,
+        "training_info": {
+            "best_epoch": best_epoch,
+            "val_loss": best_val_loss,
+            "val_accuracy": best_val_accuracy,
+            "sampling": args.sampling,
+        },
+    }
+    MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(checkpoint, MODEL_PATH)
+    print(f"Saved the best model to {MODEL_PATH}")
 
 if __name__ == "__main__":
     main()
