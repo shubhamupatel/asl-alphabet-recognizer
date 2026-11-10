@@ -21,7 +21,7 @@ PROJECT_DIR = Path(__file__).resolve().parent
 KAGGLE_PATH = PROJECT_DIR / "data" / "processed" / "kaggle.npz"
 RECORDINGS_DIR = PROJECT_DIR / "data" / "recordings"
 # Roles are assigned by file (D23). The test session is deliberately missing from both lists
-TRAIN_PATHS = [KAGGLE_PATH, RECORDINGS_DIR / "train1.npz"]
+TRAIN_PATHS = [KAGGLE_PATH, RECORDINGS_DIR / "train1.npz", RECORDINGS_DIR / "train2.npz"]
 VAL_PATHS = [RECORDINGS_DIR / "val1.npz"]
 # A fixed seed makes runs repeatable, so comparing D25's two sampling modes changes only the sampling
 SEED = 0
