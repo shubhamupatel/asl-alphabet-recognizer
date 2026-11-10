@@ -222,6 +222,8 @@ The hard part is telling a held I from the start of a J. There are two options:
 **Trade-offs accepted:**
 - Demo predictions may flicker between similar letters, such as M and N. If they do, prediction smoothing (option 3) addresses it without touching the training data
 
+**Option 3 adopted in D39:** The demo averages predicted probabilities over recent frames. The landmarks themselves stay raw
+
 ### D9: Normalization: wrist origin, palm-length scale
 
 **Options considered:**
@@ -887,6 +889,32 @@ Overall accuracy fell from 98.5% to 88.2%. The largest drops were M (93.5% to 42
 **Trade-offs accepted:**
 - Permutation importance measures how much this model relies on z, not whether a model trained without z could do as well
 - Pairing one sample's depth with another's x and y creates combinations that never occur naturally, so the drop likely overstates z's importance somewhat
+
+### D39: Demo smoothing: average probabilities over the last 10 frames
+
+**Context:** D8 kept landmarks raw and held prediction smoothing in reserve for the demo. Per-frame predictions can jump between similar letters, and the displayed letter needs to stay steady while still changing promptly when the signer moves to a new letter.
+
+**Options considered:**
+1. Require the same prediction N frames in a row before switching
+2. Average the probabilities over the last N frames, and show the top letter of the average
+3. Majority vote over the last N predictions
+4. An exponentially weighted average of the probabilities
+
+**Decision:** Option 2, with N = 10
+
+**Why:**
+- It uses confidence. A few weak wrong frames are outvoted by strong correct ones, without needing a perfect streak
+- A streak rule resets on any single wrong frame. For a letter predicted correctly 80% of the time at some angle, 10 correct frames in a row happens only about 11% of the time, so the display could stay stuck on the previous letter
+- The averaged probability also drives the confidence display and the "no letter detected" threshold, so one mechanism handles all three
+- "The last 10 frames" is easier to explain and tune than an exponential decay rate
+- Smoothing changes only what's displayed, never the training data (D8)
+
+**Trade-offs accepted:**
+- About a third of a second of delay before a new letter appears, at roughly 30 frames per second
+- Runs of errors longer than the window still reach the screen, like `val1`'s 16-frame O → C run. Smoothing removes flicker but doesn't fix the V/K and O/C weaknesses
+- N = 10 is a starting value, to be tuned by watching the demo
+
+**Note:** The window is cleared whenever no hand is detected, so a letter from before the hand left can't carry over when it returns
 
 ## Open Decisions
 
