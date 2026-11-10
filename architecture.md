@@ -45,7 +45,7 @@ asl-alphabet-recognizer/
 │   ├── landmarks.py      # MediaPipe hand landmark extraction
 │   ├── features.py       # normalization → 63-number feature vector
 │   ├── data.py           # saved .npz files → features and labels
-│   └── model.py          # classifier definition
+│   └── model.py          # classifier definition, saving, loading, and running
 ├── prepare_kaggle_data.py  # Kaggle photos → landmark data (data/processed/kaggle.npz)
 ├── collect_data.py       # webcam → labeled landmark samples
 ├── train.py              # training loop + early stopping
@@ -760,6 +760,30 @@ After both sessions were re-recorded with corrected signs, the comparison was re
 **Note:** Correcting the signs raised validation accuracy from 85.2% to 99.0% with no change to the model or training. Data quality, not generalizing across sessions, was the main limitation in the first comparison
 
 **Follow-up:** Retest weighted sampling once more training sessions exist, since each of my samples would then be drawn less often
+
+### D34: Shared classifier code: saving, loading, and running the model in `asl/model.py`
+
+**Context:** `evaluate.py` needs to run a model over a session the way `train.py`'s validation does, but with every individual prediction, for per-letter results and a confusion matrix. It and the live demo also both need to load D32's checkpoint into a ready model.
+
+**Options considered:**
+1. `evaluate.py` imports the validation code from `train.py`
+2. `evaluate.py` keeps its own copies of the measuring loop and the checkpoint loading
+3. Shared functions in `asl/model.py`: save a checkpoint, load it into a ready model, and run a model over a loader to return every sample's scores
+
+**Decision:** Option 3
+
+**Why:**
+- One function runs the model for both validation and testing, so test results are measured by exactly the code that measured validation (training/serving consistency)
+- D32's checkpoint format lives in one place, next to the class it rebuilds, so saving and loading can't disagree
+- Returning every sample's 24 scores serves every caller. Validation computes loss and accuracy from them, evaluation adds per-letter results and a confusion matrix, and the demo's confidences come from the same scores
+- Computing the loss over all scores at once gives the exact average per sample, replacing `validate()`'s size-weighted running totals
+- Importing from `train.py` would repeat the backwards dependency D26 rejected, and copies would drift apart, with the checkpoint format spread across three files
+
+**Trade-offs accepted:**
+- `validate()` and the checkpoint saving in `train.py` were reworked soon after being written
+- `model.py` grows from a class definition into the classifier's whole lifecycle: defining, saving, loading, and running it. This still matches D6's one module per pipeline stage
+
+**Note:** Inputs are still processed in batches, and only the 24 scores per sample are kept. Memory stays small even with a much larger model, such as D2's hybrid upgrade
 
 ## Open Decisions
 
