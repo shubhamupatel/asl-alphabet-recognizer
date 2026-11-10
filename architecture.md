@@ -942,6 +942,27 @@ Overall accuracy fell from 98.5% to 88.2%. The largest drops were M (93.5% to 42
 - The rates are per frame, while the demo thresholds the 10-frame average, so the demo's actual behavior will differ somewhat
 - 0.7 is a starting value, to be tuned by watching the demo
 
+### D41: Demo hand setting: a required `--hand` argument
+
+**Context:** D19 makes the signer's declared hand decide mirroring, so the demo needs to be told which hand is signing.
+
+**Options considered:**
+1. A required `--hand` command-line argument, like `collect_data.py`'s
+2. `--hand` with a default of right
+3. Required at startup, plus a key to switch hands while the demo runs
+
+**Decision:** Option 1, with the declared hand shown on screen
+
+**Why:**
+- It can't be forgotten, and it matches how recording already works
+- It's stated once per run, matching D19's reasoning that a signer's dominant hand doesn't change from frame to frame
+- A default of right would silently mirror a left-handed signer's frames wrongly, with nothing on screen to explain the poor results. That's the failure D19 exists to prevent
+- One signer rarely needs to switch hands mid-run, so a toggle key would add state for little benefit
+
+**Trade-offs accepted:**
+- The flag has to be typed on every run
+- Showing mirroring live with the other hand means restarting with the other setting. A toggle key can be added later if that becomes useful
+
 ## Open Decisions
 
 None at the moment.
