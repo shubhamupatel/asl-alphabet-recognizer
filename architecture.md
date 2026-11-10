@@ -761,7 +761,7 @@ After both sessions were re-recorded with corrected signs, the comparison was re
 
 **Note:** Correcting the signs raised validation accuracy from 85.2% to 99.0% with no change to the model or training. Data quality, not generalizing across sessions, was the main limitation in the first comparison
 
-**Follow-up:** Retest weighted sampling once more training sessions exist, since each of my samples would then be drawn less often
+**Follow-up:** Retest weighted sampling once more training sessions exist, since each of my samples would then be drawn less often. Retested after adding `train2` (D36): weighted sampling reached 97.0% validation accuracy, with V collapsing to 52%, against 98.5% for the natural mix, so the natural mix stays the default
 
 ### D34: Shared classifier code: saving, loading, and running the model in `asl/model.py`
 
@@ -837,6 +837,32 @@ After both sessions were re-recorded with corrected signs, the comparison was re
 - The same structure as the other sessions: two bursts of 100 samples for every letter (D20, D23)
 - Conditions different from both `train1` and `val1`: lighting, background, clothing, or time of day
 - A somewhat wider range of turns, tilts, and distances than `train1`, while staying realistic for the demo
+
+**Result:** See D37
+
+### D37: Keep `train2` after auditing it
+
+**Context:** Adding `train2` (D36) changed the natural-mix model's `val1` accuracy from 99.0% to 98.5%. V improved from 89.0% to 96.5%, but new errors appeared: A → S (4 to 25), M → N (0 to 13), and P → Q (0 to 7). To check whether `train2` contained bad samples, a model trained without it (Kaggle and `train1`, reproduced exactly with seed 0) was run on `train2`. It scored 98.7%, and its main disagreements were the reverse of `val1`'s new errors: Q → P (40) and S → A (10). The Q disagreements formed one contiguous stretch of about 35 frames in the second burst. Their middle fingertip's distance from the wrist (1.33 palm lengths) was closer to correctly formed Q's (1.39) than to P's (1.50), so they appear to be correct Q's at an angle the older data didn't cover.
+
+**Options considered:**
+1. Keep `train2` and move on to D14's z ablation, then the test session
+2. Drop `train2` and train on `train1` only
+3. Re-record `train2`
+4. Keep `train2`, and record `train3` later if the test session shows the same letter pairs failing
+
+**Decision:** Option 1, with option 4 in reserve
+
+**Why:**
+- The audit found no sign of malformed samples, and `train2` fixed the V weakness, which the demo would have shown
+- The new errors are best explained by one-sided coverage. `train2` added letters at new angles without their neighboring letters at those angles, which shifted the boundaries between them. More coverage on both sides fixes that, not less data
+- The overall difference (98.5% vs. 99.0%) is within one run's epoch-to-epoch swings, which exceeded 3 points
+- Choosing training data by whichever scores best on `val1` would fit the data to one session's quirks
+- A re-recording would cover different angles by chance and could create new conflicts
+
+**Trade-offs accepted:**
+- A and S are noticeably weaker on `val1`, with A at 87.5%
+- The audit's middle-finger check separates Q and P only weakly (by about 0.1 palm lengths), so it supports rather than proves that the Q stretch was valid. The 10 S disagreements weren't inspected individually
+- M → N isn't explained by the audit, which only flags samples the older model got wrong
 
 ## Open Decisions
 
