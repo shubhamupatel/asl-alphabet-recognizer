@@ -8,6 +8,8 @@ This is a from-scratch rebuild (v2) of my real-time sign language recognition pr
 
 **v2 goal:** Keep accuracy while holding up under ordinary lighting and backgrounds.
 
+**v2 result:** 98.0% accuracy on a test session recorded on a different day under new conditions (D42), with the remaining errors concentrated in M → N and P → Q.
+
 ## Scope
 
 The system recognizes individual letters of the American Sign Language (ASL) fingerspelling alphabet, signed with one hand. Words, sentences, two-handed signs, facial grammar, and sign-to-text translation are out of scope.
@@ -962,6 +964,26 @@ Overall accuracy fell from 98.5% to 88.2%. The largest drops were M (93.5% to 42
 **Trade-offs accepted:**
 - The flag has to be typed on every run
 - Showing mirroring live with the other hand means restarting with the other setting. A toggle key can be added later if that becomes useful
+
+### D42: Final test result: 98.0%, finishing with known limitations
+
+**Context:** With every model decision final, the final model (natural mix, trained on Kaggle, `train1`, and `train2`, best at epoch 6 with 98.5% validation accuracy) was evaluated once on `test1`, recorded on a different day under conditions none of the other sessions had. It scored 98.0% (4,702 of 4,800). Of its 98 mistakes, 90 were in two pairs: M → N (57) and P → Q (33), leaving M at 71.5% and P at 83.5%. The earlier weak letters V, O, A, S, and C were all at 100%. Both failing pairs had gotten worse on `val1` when `train2` was added (D37).
+
+**Options considered:**
+1. Finish with 98.0% as the final result, documenting M/N and P/Q as known limitations
+2. One improvement round: record `train3`, retrain, and record a fresh `test2` for a new honest score
+
+**Decision:** Option 1
+
+**Why:**
+- The score is honest. `test1` influenced no decision before this one, and the result came within half a point of validation's 98.5%, so validation's optimism turned out to be small
+- It meets v2's goal: about 98% under ordinary, unseen conditions, compared with v1's roughly 90% in controlled conditions
+- The remaining weakness is understood and traceable, from `val1`'s per-letter results to the `train2` audit (D37) to `test1`
+- An improvement round would turn `test1` into a second validation set and require yet another session for an honest score
+
+**Trade-offs accepted:**
+- In the live demo, M will often read as N and P as Q at some angles. The confidence threshold (D40) hides some of these, but not the confident ones
+- Recording `train3` with both sides of each weak boundary at varied angles (D37's reserve option) remains the known next step if the project continues. Any model trained after this point needs a new test session for an honest score
 
 ## Open Decisions
 
