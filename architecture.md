@@ -700,6 +700,29 @@ The hard part is telling a held I from the start of a J. There are two options:
 - Validation loss bounces between epochs, so a patience of 5 may stop on a temporary bump before the real minimum. The best snapshot is always kept, so raising the patience could only cost time, and it can be raised if runs seem to stop early
 - Keeping the best of many epochs makes the best validation loss slightly optimistic. The test set (D23) provides the honest number
 
+### D32: Saved model: a self-describing checkpoint at a fixed path
+
+**Context:** `evaluate.py` and the demo load the trained model from a file, so the file must contain everything they need to rebuild the model and turn its outputs into letters.
+
+**Options considered:**
+1. The weights only
+2. A dictionary of the weights, the model's settings, the letter list, and training information
+3. The whole model object, saved with pickle
+
+**Decision:** Option 2, saved to a fixed path, `models/letter_classifier.pt`, that every run overwrites
+
+**Why:**
+- The file is self-describing. Loaders rebuild the exact model from its saved settings, and map outputs to letters with its own letter list rather than whatever `LETTERS` happens to be at load time
+- Saving the letter order with the weights prevents training/serving skew, where an output index means one letter in training and another in the demo. A loader can compare the saved list with the current `LETTERS` and fail loudly on a mismatch
+- The training information (best epoch, validation loss and accuracy, sampling mode) records which run produced the file
+- The file holds only tensors, numbers, strings, and lists, so it loads with PyTorch's safe `weights_only=True` mode
+- A weights-only file says nothing about the settings it needs, so after tuning, an old file stops loading with no record of why
+- A pickled model object stores a reference to the class rather than the class itself, so it breaks when `model.py` changes or moves. It also can't use safe loading, which brings back the code-execution risk D18 rejected pickle for
+
+**Trade-offs accepted:**
+- Every run overwrites the previous model, including experiment runs such as D25's baseline and D14's z ablation. Their printed validation numbers remain for comparison, but the run whose model should be kept has to go last. An `--output` argument can be added if keeping several models becomes useful
+- A few more lines on both the saving and loading sides
+
 ## Open Decisions
 
 None at the moment.
