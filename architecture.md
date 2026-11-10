@@ -570,7 +570,7 @@ The hard part is telling a held I from the start of a J. There are two options:
 
 **Note:** Only training data is rebalanced. `val1` comes from a single source with equal letter counts, so it is evaluated as-is
 
-**Revised by D33:** Measured on `val1`, the natural mix beat weighted sampling at every epoch (85.2% vs. 77.3% validation accuracy at each run's best epoch), so the natural mix is now the default. Weighted sampling remains available through the switch
+**Revised by D33:** Measured on `val1`, the natural mix beat weighted sampling in both comparisons (99.0% vs. 96.6% validation accuracy at each run's best epoch, after the recordings were corrected), so the natural mix is now the default. Weighted sampling remains available through the switch
 
 ### D26: Data loading: a shared `asl/data.py` module
 
@@ -727,9 +727,15 @@ The hard part is telling a held I from the start of a J. There are two options:
 
 ### D33: Sampling default: the natural mix
 
-**Context:** D25 chose weighted sampling, keeping the natural mix as a switchable baseline to compare on validation data. With seed 0, the natural mix did better at every epoch, on both validation loss and validation accuracy:
-- Natural mix: best validation loss 0.459 at epoch 2, with 85.2% validation accuracy (86.3% at its highest)
-- Weighted sampling: best validation loss 0.693 at epoch 1, with 77.3% validation accuracy (82.0% at its highest)
+**Context:** D25 chose weighted sampling, keeping the natural mix as a switchable baseline to compare on validation data. Both comparisons below used seed 0.
+
+The first comparison used `train1` and `val1` sessions later found to contain incorrectly signed letters:
+- Natural mix: best validation loss 0.459 at epoch 2, with 85.2% validation accuracy
+- Weighted sampling: best validation loss 0.693 at epoch 1, with 77.3% validation accuracy
+
+After both sessions were re-recorded with corrected signs, the comparison was rerun:
+- Natural mix: best validation loss 0.046 at epoch 7, with 99.0% validation accuracy
+- Weighted sampling: best validation loss 0.121 at epoch 3, with 96.6% validation accuracy
 
 **Options considered:**
 1. Make the natural mix the default, keeping weighted sampling as the switchable alternative
@@ -739,17 +745,21 @@ The hard part is telling a held I from the start of a J. There are two options:
 **Decision:** Option 1
 
 **Why:**
-- It follows the measurements, and the gap was consistent at every epoch rather than at one lucky epoch
-- The likely cause is the risk D25 accepted. Weighted batches drew each of my near-duplicate `train1` samples about 6 times per epoch, so the model learned details specific to that session that didn't carry over to `val1`. Its validation loss also started rising an epoch sooner
-- A middle ground would tune a lever that doesn't look like the main problem, and every extra comparison on `val1` makes its score more optimistic
+- The natural mix won both comparisons. In the rerun, it had higher validation accuracy at every epoch, and lower validation loss from epoch 3 onward
+- The likely cause is the risk D25 accepted. Weighted batches drew each of my near-duplicate `train1` samples about 6 times per epoch, so the model learned details specific to that session that didn't carry over to `val1`. In both comparisons, its validation loss bottomed out sooner (epoch 3 vs. 7 in the rerun)
+- In the first comparison, weighted sampling also amplified the incorrectly signed letters about 6 times as much as the natural mix did, which likely explains much of that larger gap. The rerun's gap is smaller but still clear
+- A middle ground would mean more comparisons on `val1`, and every extra comparison makes its score more optimistic
 - Keeping the worse setup would rest on a guess about future data
 
 **Trade-offs accepted:**
-- Kaggle's letters stay uneven, so M and N remain underrepresented in training, though nothing in the results shows this hurting yet
+- Kaggle's letters stay uneven, so M and N remain underrepresented in training, though nothing in the results shows this hurting
 - About 92% of training samples come from Kaggle again
-- The comparison used one seed. The gap's consistency across every epoch makes luck unlikely, but a second seed would confirm it
+- Each comparison used one seed. The rerun's accuracy gap at every epoch makes luck unlikely, but a second seed would confirm it
+- 99.0% is the best of 12 epochs, on a validation session now used for several comparisons, so it's optimistic. The test session (D23) provides the honest number
 
-**Follow-up:** Retest weighted sampling once more training sessions exist, since each of my samples would then be drawn less often. Both runs also showed validation loss rising after epoch 1 or 2 while training loss kept falling, which points to generalizing across sessions, more than imbalance, as the main limitation
+**Note:** Correcting the signs raised validation accuracy from 85.2% to 99.0% with no change to the model or training. Data quality, not generalizing across sessions, was the main limitation in the first comparison
+
+**Follow-up:** Retest weighted sampling once more training sessions exist, since each of my samples would then be drawn less often
 
 ## Open Decisions
 
