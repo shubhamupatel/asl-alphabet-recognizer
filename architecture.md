@@ -657,6 +657,28 @@ The hard part is telling a held I from the start of a J. There are two options:
 
 **Note:** The count is the training set's actual size, measured at load time rather than hardcoded, so it adjusts automatically if more training sessions are added
 
+### D30: Optimizer: Adam, learning rate 0.001
+
+**Options considered:**
+1. Plain SGD
+2. SGD with momentum
+3. Adam
+4. AdamW (Adam with weight decay)
+
+**Decision:** Adam, with a learning rate of 0.001
+
+**Why:**
+- Adam combines momentum, which smooths each step's direction across noisy mini-batches, with a per-weight step size based on how large that weight's gradients usually are. This makes it much less sensitive to the learning rate than SGD
+- Its standard learning rate of 0.001 works well for small networks with little tuning, keeping attention on the comparisons that matter, such as D25's sampling modes and D14's z ablation
+- Weights connected to inputs with different gradient scales, such as the noisier z values (D14), get steps scaled to suit them
+- Plain SGD is very sensitive to the learning rate and zigzags on noisy gradients. Momentum helps, but still needs careful learning-rate tuning
+- AdamW's weight decay would add another regularizer to tune, on top of dropout (D24) and early stopping
+
+**Trade-offs accepted:**
+- Adam's updates are harder to explain step by step than SGD's
+- Carefully tuned SGD with momentum sometimes generalizes slightly better. That comparison could be run on validation data later
+- The learning rate is a starting value, not a measured optimum. It's a constant at the top of `train.py`, so it can be tuned on validation data (never test data)
+
 ## Open Decisions
 
 None at the moment.
