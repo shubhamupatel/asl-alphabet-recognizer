@@ -14,7 +14,7 @@ from torch import nn
 from torch.utils.data import DataLoader, TensorDataset, WeightedRandomSampler
 
 from asl.data import load_files
-from asl.model import LetterClassifier, predict, save_checkpoint
+from asl.model import DEFAULT_CHECKPOINT_PATH, LetterClassifier, predict, save_checkpoint
 
 # Anchor paths to this script's folder so it runs correctly from anywhere
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -33,8 +33,6 @@ LEARNING_RATE = 0.001
 PATIENCE = 5
 # Safety net in case tiny improvements keep resetting the patience counter (D31)
 MAX_EPOCHS = 100
-# Every run overwrites this file (D32)
-MODEL_PATH = PROJECT_DIR / "models" / "letter_classifier.pt"
 # The model's constructor settings (D24), saved with the weights so the model can be rebuilt exactly (D32)
 MODEL_SETTINGS = {"first_hidden": 128, "second_hidden": 64, "dropout": 0.2}
 
@@ -106,7 +104,7 @@ def validate(model, loader, loss_fn):
     logits, labels = predict(model, loader)
     # Computed over every sample at once, so it's the exact average however the batches were split
     loss = loss_fn(logits, labels).item()
-    accuracy = (logits.argmax(dim=1) == labels).float().mean().item()
+    accuracy = (logits.argmax(dim=1) == labels).sum().item() / len(labels)
     return loss, accuracy
 
 def main():
@@ -168,8 +166,8 @@ def main():
         "val_accuracy": best_val_accuracy,
         "sampling": args.sampling,
     }
-    save_checkpoint(MODEL_PATH, best_weights, MODEL_SETTINGS, training_info)
-    print(f"Saved the best model to {MODEL_PATH}")
+    save_checkpoint(DEFAULT_CHECKPOINT_PATH, best_weights, MODEL_SETTINGS, training_info)
+    print(f"Saved the best model to {DEFAULT_CHECKPOINT_PATH}")
 
 if __name__ == "__main__":
     main()

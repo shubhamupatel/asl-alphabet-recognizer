@@ -8,6 +8,8 @@ from torch import nn
 from asl.features import NUM_FEATURES
 from asl.labels import LETTERS, NUM_CLASSES
 
+# Where train.py saves the trained model, and where evaluate.py and the demo load it from (D32)
+DEFAULT_CHECKPOINT_PATH = Path(__file__).resolve().parent.parent / "models" / "letter_classifier.pt"
 
 class LetterClassifier(nn.Module):
     """Maps a batch of 63-number feature vectors to 24 letter scores (logits) each."""
