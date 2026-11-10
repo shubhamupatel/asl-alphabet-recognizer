@@ -916,6 +916,32 @@ Overall accuracy fell from 98.5% to 88.2%. The largest drops were M (93.5% to 42
 
 **Note:** The window is cleared whenever no hand is detected, so a letter from before the hand left can't carry over when it returns
 
+### D40: Demo confidence threshold: 0.7
+
+**Context:** When the model isn't confident about any letter, the demo shows "No letter detected" instead of a guess (a reject option). On `val1`, the model's per-frame confidence (its highest softmax probability) was usually lower when it was wrong: half of its 73 mistakes fell between 0.5 and 0.6. The measured trade-offs:
+- 0.6: shows 98.2% of correct predictions, hides 49.3% of wrong ones
+- 0.7: shows 96.5% of correct predictions, hides 69.9% of wrong ones
+- 0.8: shows 93.6% of correct predictions, hides 82.2% of wrong ones
+- 0.9: shows 90.6% of correct predictions, hides 90.4% of wrong ones
+
+**Options considered:**
+1. 0.6
+2. 0.7
+3. 0.8
+4. 0.9
+
+**Decision:** Option 2, applied to the 10-frame average (D39)
+
+**Why:**
+- It catches most mistakes while barely affecting correct letters. Beyond it, the gains shrink: 0.8 hides about twice as many correct frames (about 303 vs. 165) to catch about 9 more wrong ones
+- Choosing from measured rates on validation data avoids relying on softmax confidences being calibrated
+- Smoothing should hide fewer correct letters than the per-frame numbers suggest, since a steady letter's occasional weak frames are averaged up by the strong ones around them
+
+**Trade-offs accepted:**
+- About 22 of 4,800 wrong frames still pass at this threshold, including confident errors above 0.9 that no reasonable threshold catches
+- The rates are per frame, while the demo thresholds the 10-frame average, so the demo's actual behavior will differ somewhat
+- 0.7 is a starting value, to be tuned by watching the demo
+
 ## Open Decisions
 
 None at the moment.
