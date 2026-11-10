@@ -815,6 +815,8 @@ After both sessions were re-recorded with corrected signs, the comparison was re
 
 **Follow-up:** Add a heatmap image for the README once the final test results exist
 
+**Follow-up resolved by D43:** `evaluate.py` saves a heatmap image with its `--heatmap` option
+
 ### D36: Add a second training session, `train2`
 
 **Context:** On `val1`, 42 of the 47 errors came from two letter pairs: V and K (V → K: 22, K → V: 4) and O and C (O → C: 16). Every V and O error fell in that letter's second burst, in contiguous runs (O's were 16 frames in a row), while both letters' first bursts were 100% correct. Those bursts included realistic changes in distance and hand angle. This points to gaps in the training data's coverage of those angles, not to incorrectly signed samples or a flaw in the model.
@@ -984,6 +986,27 @@ Overall accuracy fell from 98.5% to 88.2%. The largest drops were M (93.5% to 42
 **Trade-offs accepted:**
 - In the live demo, M will often read as N and P as Q at some angles. The confidence threshold (D40) hides some of these, but not the confident ones
 - Recording `train3` with both sides of each weak boundary at varied angles (D37's reserve option) remains the known next step if the project continues. Any model trained after this point needs a new test session for an honest score
+
+### D43: Confusion matrix heatmap: a `--heatmap` option on `evaluate.py`
+
+**Context:** D35 printed the evaluation report as text and planned a heatmap image for the README once final test results existed. Drawing the image needs matplotlib, a new dependency.
+
+**Options considered:**
+1. A `--heatmap` option on `evaluate.py` that saves the image
+2. A separate plotting script that imports from `evaluate.py`
+3. Move `confusion_matrix` into `asl/`, plus a separate plotting script
+
+**Decision:** Option 1. Cells are shaded by row percentage (the share of each true letter's samples that landed there), with the raw count written in every nonzero cell
+
+**Why:**
+- It reuses the matrix `evaluate.py` already computes, so the image and the printed report can never disagree
+- A separate script importing from `evaluate.py` would repeat the backwards dependency D26 rejected, and moving the function into `asl/` would restructure two files for one figure
+- Shading by raw counts would show mostly the diagonal, at about 200 per cell, and leave most mistakes, at 1 to 5 each, nearly invisible. Row percentages make each letter's errors stand out in proportion to its samples
+- Writing the counts in the cells keeps the exact numbers readable
+
+**Trade-offs accepted:**
+- `evaluate.py` imports matplotlib on every run, adding a fraction of a second even when no image is wanted
+- Row percentages hide differences in how many samples each letter has, though every recorded session has exactly 200 per letter (D20)
 
 ## Open Decisions
 
