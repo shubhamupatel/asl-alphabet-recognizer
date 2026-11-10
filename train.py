@@ -14,8 +14,7 @@ from torch import nn
 from torch.utils.data import DataLoader, TensorDataset, WeightedRandomSampler
 
 from asl.data import load_files
-from asl.labels import LETTERS
-from asl.model import LetterClassifier
+from asl.model import LetterClassifier, predict, save_checkpoint
 
 # Anchor paths to this script's folder so it runs correctly from anywhere
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -104,25 +103,11 @@ def train_one_epoch(model, loader, loss_fn, optimizer):
 
 def validate(model, loader, loss_fn):
     """Measure the model on validation data and return its average loss per sample and its accuracy."""
-    # Turns dropout off, so every neuron contributes and the same input always gives the same output
-    model.eval()
-    total_loss = 0.0
-    total_correct = 0
-    total_samples = 0
-    # Nothing learns here, so skip recording the operations backpropagation would need
-    with torch.no_grad():
-        for features, labels in loader:
-            logits = model(features)
-            loss = loss_fn(logits, labels)
-            # The highest of the 24 scores is the predicted letter.
-            # Softmax isn't needed, since it never changes which score is highest
-            predictions = logits.argmax(dim=1)
-
-            batch_size = len(labels)
-            total_loss += loss.item() * batch_size
-            total_correct += (predictions == labels).sum().item()
-            total_samples += batch_size
-    return total_loss / total_samples, total_correct / total_samples
+    logits, labels = predict(model, loader)
+    # Computed over every sample at once, so it's the exact average however the batches were split
+    loss = loss_fn(logits, labels).item()
+    accuracy = (logits.argmax(dim=1) == labels).float().mean().item()
+    return loss, accuracy
 
 def main():
     args = parse_args()
@@ -177,20 +162,13 @@ def main():
         print(f"Reached the {MAX_EPOCHS}-epoch limit")
     print(f"Best: epoch {best_epoch}, val loss {best_val_loss:.4f}, val accuracy {best_val_accuracy:.1%}")
 
-    checkpoint = {
-        "weights": best_weights,
-        "model_settings": MODEL_SETTINGS,
-        # The order of LETTERS is what each of the 24 outputs means, so it travels with the weights
-        "letters": LETTERS,
-        "training_info": {
-            "best_epoch": best_epoch,
-            "val_loss": best_val_loss,
-            "val_accuracy": best_val_accuracy,
-            "sampling": args.sampling,
-        },
+    training_info = {
+        "best_epoch": best_epoch,
+        "val_loss": best_val_loss,
+        "val_accuracy": best_val_accuracy,
+        "sampling": args.sampling,
     }
-    MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(checkpoint, MODEL_PATH)
+    save_checkpoint(MODEL_PATH, best_weights, MODEL_SETTINGS, training_info)
     print(f"Saved the best model to {MODEL_PATH}")
 
 if __name__ == "__main__":
