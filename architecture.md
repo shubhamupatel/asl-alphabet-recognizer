@@ -570,6 +570,8 @@ The hard part is telling a held I from the start of a J. There are two options:
 
 **Note:** Only training data is rebalanced. `val1` comes from a single source with equal letter counts, so it is evaluated as-is
 
+**Revised by D33:** Measured on `val1`, the natural mix beat weighted sampling at every epoch (85.2% vs. 77.3% validation accuracy at each run's best epoch), so the natural mix is now the default. Weighted sampling remains available through the switch
+
 ### D26: Data loading: a shared `asl/data.py` module
 
 **Context:** `train.py` and `evaluate.py` both turn saved `.npz` files into features and labels: training and validation data in one, test data in the other.
@@ -722,6 +724,32 @@ The hard part is telling a held I from the start of a J. There are two options:
 **Trade-offs accepted:**
 - Every run overwrites the previous model, including experiment runs such as D25's baseline and D14's z ablation. Their printed validation numbers remain for comparison, but the run whose model should be kept has to go last. An `--output` argument can be added if keeping several models becomes useful
 - A few more lines on both the saving and loading sides
+
+### D33: Sampling default: the natural mix
+
+**Context:** D25 chose weighted sampling, keeping the natural mix as a switchable baseline to compare on validation data. With seed 0, the natural mix did better at every epoch, on both validation loss and validation accuracy:
+- Natural mix: best validation loss 0.459 at epoch 2, with 85.2% validation accuracy (86.3% at its highest)
+- Weighted sampling: best validation loss 0.693 at epoch 1, with 77.3% validation accuracy (82.0% at its highest)
+
+**Options considered:**
+1. Make the natural mix the default, keeping weighted sampling as the switchable alternative
+2. Tune a middle ground, such as weighting my recordings at 25% instead of 50%, or balancing letters but not sources
+3. Keep weighted sampling as the default and expect more training sessions to fix it
+
+**Decision:** Option 1
+
+**Why:**
+- It follows the measurements, and the gap was consistent at every epoch rather than at one lucky epoch
+- The likely cause is the risk D25 accepted. Weighted batches drew each of my near-duplicate `train1` samples about 6 times per epoch, so the model learned details specific to that session that didn't carry over to `val1`. Its validation loss also started rising an epoch sooner
+- A middle ground would tune a lever that doesn't look like the main problem, and every extra comparison on `val1` makes its score more optimistic
+- Keeping the worse setup would rest on a guess about future data
+
+**Trade-offs accepted:**
+- Kaggle's letters stay uneven, so M and N remain underrepresented in training, though nothing in the results shows this hurting yet
+- About 92% of training samples come from Kaggle again
+- The comparison used one seed. The gap's consistency across every epoch makes luck unlikely, but a second seed would confirm it
+
+**Follow-up:** Retest weighted sampling once more training sessions exist, since each of my samples would then be drawn less often. Both runs also showed validation loss rising after epoch 1 or 2 while training loss kept falling, which points to generalizing across sessions, more than imbalance, as the main limitation
 
 ## Open Decisions
 
