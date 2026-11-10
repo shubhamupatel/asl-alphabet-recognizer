@@ -785,6 +785,28 @@ After both sessions were re-recorded with corrected signs, the comparison was re
 
 **Note:** Inputs are still processed in batches, and only the 24 scores per sample are kept. Memory stays small even with a much larger model, such as D2's hybrid upgrade
 
+### D35: Evaluation report: accuracy per letter and the most common confusions
+
+**Context:** A confusion matrix counts how often each true letter (a row) was predicted as each letter (a column). At around 99% accuracy, nearly every cell off the diagonal is zero, so the full 24 × 24 grid is hard to read.
+
+**Options considered:**
+1. Print the full matrix in the terminal
+2. Print accuracy per letter, worst first, plus a list of the most common confusions
+3. Save the matrix as a heatmap image
+
+**Decision:** Option 2
+
+**Why:**
+- It answers the questions the report exists for: which letters fail, and what they get mistaken for
+- The full matrix is over 100 characters wide, and its few real errors are hard to spot among the zeros
+- Errors concentrated in specific letters, like the incorrectly signed recordings behind D33's first comparison, are invisible in overall accuracy
+- A heatmap needs a new dependency (matplotlib) and a separate file to open after every run
+
+**Trade-offs accepted:**
+- The whole matrix is never shown at once. It's still computed, so the display can be extended later
+
+**Follow-up:** Add a heatmap image for the README once the final test results exist
+
 ## Open Decisions
 
 None at the moment.
