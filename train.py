@@ -92,6 +92,28 @@ def train_one_epoch(model, loader, loss_fn, optimizer):
         total_samples += batch_size
     return total_loss / total_samples
 
+def validate(model, loader, loss_fn):
+    """Measure the model on validation data and return its average loss per sample and its accuracy."""
+    # Turns dropout off, so every neuron contributes and the same input always gives the same output
+    model.eval()
+    total_loss = 0.0
+    total_correct = 0
+    total_samples = 0
+    # Nothing learns here, so skip recording the operations backpropagation would need
+    with torch.no_grad():
+        for features, labels in loader:
+            logits = model(features)
+            loss = loss_fn(logits, labels)
+            # The highest of the 24 scores is the predicted letter.
+            # Softmax isn't needed, since it never changes which score is highest
+            predictions = logits.argmax(dim=1)
+
+            batch_size = len(labels)
+            total_loss += loss.item() * batch_size
+            total_correct += (predictions == labels).sum().item()
+            total_samples += batch_size
+    return total_loss / total_samples, total_correct / total_samples
+
 def main():
     args = parse_args()
     # PyTorch's random number generator drives initial weights, dropout, and batch order
