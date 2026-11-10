@@ -7,6 +7,7 @@ To check this script itself, run it on val1, since validation data can be used f
 import argparse
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, TensorDataset
@@ -32,6 +33,10 @@ def parse_args():
         "--model",
         default=DEFAULT_CHECKPOINT_PATH,
         help="the saved model to evaluate (default: models/letter_classifier.pt)",
+    )
+    parser.add_argument(
+        "--heatmap",
+        help="also save the confusion matrix as an image at this path, such as docs/confusion_matrix.png (D43)",
     )
     return parser.parse_args()
 
@@ -73,6 +78,35 @@ def print_report(matrix):
     for count, true_letter, predicted_letter in confusions[:NUM_CONFUSIONS_SHOWN]:
         print(f"  {true_letter} -> {predicted_letter}: {count}")
 
+def save_heatmap(matrix, path, title):
+    """Save the confusion matrix as an image, shaded by row percentage, with counts in nonzero cells (D43)."""
+    # Each row divided by its total: the share of that true letter's samples landing in each cell
+    row_shares = matrix / matrix.sum(axis=1, keepdims=True)
+
+    fig, ax = plt.subplots(figsize=(10, 9))
+    image = ax.imshow(row_shares, cmap="Blues", vmin=0, vmax=1)
+    fig.colorbar(image, ax=ax, label="Share of the true letter's samples")
+
+    ax.set_xticks(range(NUM_CLASSES), labels=LETTERS)
+    ax.set_yticks(range(NUM_CLASSES), labels=LETTERS)
+    ax.set_xlabel("Predicted letter")
+    ax.set_ylabel("True letter")
+    ax.set_title(title)
+
+    for true in range(NUM_CLASSES):
+        for predicted in range(NUM_CLASSES):
+            count = matrix[true, predicted]
+            if count > 0:
+                # White text on dark cells and black on light ones, so every count stays readable
+                color = "white" if row_shares[true, predicted] > 0.5 else "black"
+                ax.text(predicted, true, str(count), ha="center", va="center", fontsize=7, color=color)
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    # Free the figure's memory, since nothing displays it
+    plt.close(fig)
+
 def main():
     args = parse_args()
 
@@ -94,6 +128,12 @@ def main():
 
     print_report(confusion_matrix(true_labels, predictions))
 
+    matrix = confusion_matrix(true_labels, predictions)
+    print_report(matrix)
+    if args.heatmap:
+        title = f"Confusion matrix on {args.session}: {correct} of {total} correct ({correct / total:.1%})"
+        save_heatmap(matrix, args.heatmap, title)
+        print(f"\nSaved the heatmap to {args.heatmap}")
 
 if __name__ == "__main__":
     main()
