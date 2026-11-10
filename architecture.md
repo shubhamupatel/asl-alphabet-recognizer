@@ -679,6 +679,27 @@ The hard part is telling a held I from the start of a J. There are two options:
 - Carefully tuned SGD with momentum sometimes generalizes slightly better. That comparison could be run on validation data later
 - The learning rate is a starting value, not a measured optimum. It's a constant at the top of `train.py`, so it can be tuned on validation data (never test data)
 
+### D31: Early stopping: validation loss, patience of 5
+
+**Options considered:**
+1. Watch validation loss
+2. Watch validation accuracy
+3. Both: stop on validation loss, but keep the epoch with the best validation accuracy
+
+**Decision:** Option 1, with a patience of 5 epochs and a limit of 100 epochs
+
+**Why:**
+- Validation loss is continuous and sensitive. It moves whenever the model's confidence changes, even when no prediction flips
+- It's the quantity the model is trained to reduce, and it shows overfitting first, as the model becomes confidently wrong on some validation samples
+- Accuracy moves in steps of 1/4,800, so epochs often tie, and it ignores confidence, which the demo will display and may smooth predictions with (D8)
+- Watching both would let the two disagree about which epoch is best, making the logic harder to write and explain
+- Any decrease in validation loss resets the patience counter, so a run of tiny improvements could keep training going for a long time. The 100-epoch limit is a safety net against that
+
+**Trade-offs accepted:**
+- Loss can rise slightly while accuracy still improves, so the kept epoch isn't guaranteed to have the highest validation accuracy. Accuracy is printed every epoch, so this stays visible
+- Validation loss bounces between epochs, so a patience of 5 may stop on a temporary bump before the real minimum. The best snapshot is always kept, so raising the patience could only cost time, and it can be raised if runs seem to stop early
+- Keeping the best of many epochs makes the best validation loss slightly optimistic. The test set (D23) provides the honest number
+
 ## Open Decisions
 
 None at the moment.
