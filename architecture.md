@@ -340,6 +340,8 @@ The hard part is telling a held I from the start of a J. There are two options:
 
 **Follow-up:** Once training works, train with and without z and compare validation accuracy, especially on A, S, E, M, N, and T. The comparison uses validation data only, so the test set stays untouched
 
+**Follow-up resolved by D38:** Permutation importance on `val1` showed the model relies heavily on z, especially for the depth-dependent letters, so z stays and the full ablation was skipped
+
 ### D15: Wrist values: keep all 63 features
 
 **Context:** After normalization the wrist is always the origin, so its three values are always zero.
@@ -863,6 +865,28 @@ After both sessions were re-recorded with corrected signs, the comparison was re
 - A and S are noticeably weaker on `val1`, with A at 87.5%
 - The audit's middle-finger check separates Q and P only weakly (by about 0.1 palm lengths), so it supports rather than proves that the Q stretch was valid. The 10 S disagreements weren't inspected individually
 - M → N isn't explained by the audit, which only flags samples the older model got wrong
+
+### D38: Depth values: keep z, confirmed by permutation importance
+
+**Context:** D14 kept z and planned an ablation: train with and without z, then compare on validation data. A full ablation would touch five files (features, data loading, the model's input size, the checkpoint, and evaluation) and would need several seeds, since validation accuracy swings by over 3 points between epochs. A cheaper check, permutation importance, shuffles the z values among `val1`'s samples while leaving x, y, and the labels in place, then measures how much the current model's accuracy drops.
+
+Overall accuracy fell from 98.5% to 88.2%. The largest drops were M (93.5% to 42.5%), K (96.0% to 59.0%), A (87.5% to 53.5%), O (93.5% to 68.5%), and T (100% to 82.0%), while N and C stayed at 100%. Of the 494 correct predictions lost, about 407 came from the ten depth-related letters checked, and the other 14 letters lost about 87 between them.
+
+**Options considered:**
+1. Keep z and close D14's follow-up with the permutation result
+2. Run the full ablation anyway
+
+**Decision:** Option 1
+
+**Why:**
+- The model relies heavily on z, and the losses are concentrated in the letters D14 expected to depend on depth: thumb placement (A, S, E, M, T) and finger curl (O). Nonsense inputs alone would have hurt every letter about equally
+- Without depth, M collapses into N and O into C, pairs that differ mainly in depth, so a model trained without z is unlikely to make up for it
+- No feature change is coming, so the test session (D23) can go ahead
+- The full ablation would take a five-file change and several seeded runs to confirm what this already strongly suggests, plus another round of comparisons on `val1`
+
+**Trade-offs accepted:**
+- Permutation importance measures how much this model relies on z, not whether a model trained without z could do as well
+- Pairing one sample's depth with another's x and y creates combinations that never occur naturally, so the drop likely overstates z's importance somewhat
 
 ## Open Decisions
 
