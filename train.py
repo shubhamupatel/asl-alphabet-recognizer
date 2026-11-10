@@ -5,6 +5,7 @@ after every epoch. The test session is never loaded here. Only evaluate.py reads
 """
 
 import argparse
+import copy
 from collections import Counter
 from pathlib import Path
 
@@ -28,6 +29,10 @@ SEED = 0
 BATCH_SIZE = 64
 # Adam's standard default (D30). Tunable on validation data, never test data
 LEARNING_RATE = 0.001
+# Stop after this many epochs in a row without a lower validation loss (D31)
+PATIENCE = 5
+# Safety net in case tiny improvements keep resetting the patience counter (D31)
+MAX_EPOCHS = 100
 
 
 def parse_args():
@@ -134,6 +139,38 @@ def main():
     loss_fn = nn.CrossEntropyLoss()
     # The optimizer gets direct access to every weight and bias the model tracks
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+
+    # Infinity, so the first epoch always counts as an improvement
+    best_val_loss = float("inf")
+    best_val_accuracy = 0.0
+    best_epoch = 0
+    best_weights = None
+    epochs_without_improvement = 0
+
+    for epoch in range(1, MAX_EPOCHS + 1):
+        train_loss = train_one_epoch(model, train_loader, loss_fn, optimizer)
+        val_loss, val_accuracy = validate(model, val_loader, loss_fn)
+        summary = f"Epoch {epoch:3d}: train loss {train_loss:.4f}, val loss {val_loss:.4f}, val accuracy {val_accuracy:.1%}"
+
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            best_val_accuracy = val_accuracy
+            best_epoch = epoch
+            # A deep copy, because state_dict() returns the live tensors that every optimizer step changes
+            best_weights = copy.deepcopy(model.state_dict())
+            epochs_without_improvement = 0
+            summary += "  (best so far)"
+        else:
+            epochs_without_improvement += 1
+        print(summary)
+
+        if epochs_without_improvement >= PATIENCE:
+            print(f"Stopping: no improvement for {PATIENCE} epochs")
+            break
+
+    if epochs_without_improvement < PATIENCE:
+        print(f"Reached the {MAX_EPOCHS}-epoch limit")
+    print(f"Best: epoch {best_epoch}, val loss {best_val_loss:.4f}, val accuracy {best_val_accuracy:.1%}")
 
 if __name__ == "__main__":
     main()
