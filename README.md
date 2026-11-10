@@ -15,6 +15,8 @@ The model recognizes the 24 static letters of the ASL fingerspelling alphabet. J
 
 **Known limitations:** 90 of the 98 test mistakes fall in two letter pairs. At certain hand angles, M is read as N (71.5% accuracy on M) and P as Q (83.5% on P). I traced both to one-sided coverage in my second training session: it added these letters at new angles without enough of their neighboring letters at the same angles. The natural next step is a training session that covers both sides of each boundary.
 
+![Confusion matrix on the test session](docs/confusion_matrix.png)
+
 ## How it works
 
 ```
