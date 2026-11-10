@@ -46,8 +46,8 @@ def parse_args():
     parser.add_argument(
         "--sampling",
         choices=["balanced", "natural"],
-        default="balanced",
-        help="balanced draws every source and letter equally often; natural is the unweighted baseline (default: balanced)",
+        default="natural",
+        help="balanced draws every source and letter equally often; natural is the unweighted baseline (default: natural)",
     )
     return parser.parse_args()
 
