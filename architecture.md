@@ -523,6 +523,8 @@ The hard part is telling a held I from the start of a J. There are two options:
 - Roughly 30 minutes of recording, ideally spread across different days
 - My training data (about 4,800 samples) is small next to Kaggle's 55,368, which may need weighting during training. Resolved in D25
 
+**Revised by D36:** A second training session, `train2`, was added after per-letter results on `val1` showed gaps in the training data's coverage of hand angles. The plan is now four sessions, plus the optional `test_left1`
+
 ### D24: Model architecture: two hidden layers with ReLU and dropout
 
 **Options considered:**
@@ -806,6 +808,35 @@ After both sessions were re-recorded with corrected signs, the comparison was re
 - The whole matrix is never shown at once. It's still computed, so the display can be extended later
 
 **Follow-up:** Add a heatmap image for the README once the final test results exist
+
+### D36: Add a second training session, `train2`
+
+**Context:** On `val1`, 42 of the 47 errors came from two letter pairs: V and K (V → K: 22, K → V: 4) and O and C (O → C: 16). Every V and O error fell in that letter's second burst, in contiguous runs (O's were 16 frames in a row), while both letters' first bursts were 100% correct. Those bursts included realistic changes in distance and hand angle. This points to gaps in the training data's coverage of those angles, not to incorrectly signed samples or a flaw in the model.
+
+**Options considered:**
+1. Record a second training session with broad variety in angle and distance
+2. Data augmentation: synthetically rotate and scale training samples
+3. Run D14's z ablation first
+4. Accept the current model and move on to the test session and the demo
+
+**Decision:** Option 1, followed by D14's z ablation on the larger training set
+
+**Why:**
+- It addresses the likely cause, missing coverage, with real data. Fixing data produced the project's largest improvement so far (D33)
+- Augmentation risks blurring letters that differ mainly by orientation (D10), such as K and P, while K is already confused with V. Rotated landmarks with noisy z values also may not resemble real camera angles
+- The z ablation measures whether depth helps but adds no coverage, so it's more informative once the training set is larger
+- Accepting the model would leave a weakness the demo would show visibly. Half-second runs of wrong letters are too long for prediction smoothing (D8) to hide
+- With twice as much of my own data, each of my samples would be drawn about half as often under weighted sampling, so D33's follow-up can be retested
+
+**Trade-offs accepted:**
+- About 10 more minutes of recording, plus retraining
+- `train2` should vary angle and distance broadly rather than recreate `val1`'s failing poses. Copying them would tune the training data to `val1` and make its score optimistic
+- `val1` is used for yet another comparison, adding to its optimism. The test session (D23) remains the honest check
+
+**Plan:**
+- The same structure as the other sessions: two bursts of 100 samples for every letter (D20, D23)
+- Conditions different from both `train1` and `val1`: lighting, background, clothing, or time of day
+- A somewhat wider range of turns, tilts, and distances than `train1`, while staying realistic for the demo
 
 ## Open Decisions
 
