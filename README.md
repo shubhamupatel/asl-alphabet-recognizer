@@ -1,6 +1,6 @@
 # ASL Alphabet Recognizer
 
-Real-time ASL alphabet recognition from a webcam, using MediaPipe hand landmarks and a small PyTorch classifier.
+This project is a real-time ASL alphabet recognition from a webcam, using MediaPipe hand landmarks and a small PyTorch classifier.
 
 **98.0% accuracy** on a held-out test session recorded on a different day, under lighting and a background the model never saw.
 
@@ -13,16 +13,18 @@ Real-time ASL alphabet recognition from a webcam, using MediaPipe hand landmarks
 
 The model recognizes the 24 static letters of the ASL fingerspelling alphabet. J and Z involve motion, so they're out of scope for this version.
 
-**Known limitations:** 90 of the 98 test mistakes fall in two letter pairs. At certain hand angles, M is read as N (71.5% accuracy on M) and P as Q (83.5% on P). I traced both to one-sided coverage in my second training session: it added these letters at new angles without enough of their neighboring letters at the same angles. The natural next step is a training session that covers both sides of each boundary.
+**Known limitations:** 
+- 90 of the 98 test mistakes fall in two letter pairs. At certain hand angles, M is read as N (71.5% accuracy on M) and P as Q (83.5% on P). I traced both to one-sided coverage in my second training session: it added these letters at new angles without enough of their neighboring letters at the same angles. The natural next step is a training session that covers both sides of each boundary.
+- This project's scope doesn't include characters that involve motion (J and Z). For the sake of complexity, this project only recognizes static ASL alphabet characters.
 
 ![Confusion matrix on the test session](docs/confusion_matrix.png)
 
 ## How it works
 
 ```
-Webcam frame
+Webcam frame: user signs a letter
   → MediaPipe HandLandmarker: 21 hand landmarks (x, y, z)
-  → normalization: wrist as the origin, scaled by palm length, left hands mirrored
+  → normalization: wrist as the origin, scaled by palm length, left hands are mirrored
   → 63-number feature vector
   → classifier: 63 → 128 → 64 → 24, with ReLU and 20% dropout
   → softmax, averaged over the last 10 frames
@@ -35,8 +37,8 @@ Every design decision, with the options considered and the reasoning behind each
 
 ## Data
 
-- **The Kaggle ASL Alphabet dataset:** 55,368 photos in which MediaPipe found a hand, used for training only
-- **My own webcam recordings:** two training sessions, one validation session, and one test session, each with 4,800 samples (24 letters × 2 bursts × 100 frames), recorded on different days under different lighting and backgrounds
+- **The Kaggle ASL Alphabet dataset:** 55,368 photos in which MediaPipe found a hand (out of 72,000 total photos), used for training only
+- **My own webcam recordings:** Two training sessions, one validation session, and one test session, each with 4,800 samples (24 letters * 2 bursts * 100 frames), recorded on different days under different lighting and backgrounds
 
 Data is split by session, not by random frames. Frames within a recording burst are nearly identical, so a random split would leak near-duplicates between training and evaluation and inflate the scores.
 
@@ -45,7 +47,7 @@ Recordings store only hand landmark coordinates, never images.
 ## What I learned along the way
 
 - **Data quality beat every model change.** My first validation score was 85.2%. I then realized I'd signed some letters incorrectly while recording. After re-recording, validation rose to 99.0% with no change to the model or training.
-- **Testing a hypothesis against a baseline.** I expected class-balanced sampling to help, so I kept the unweighted mix as a switchable baseline. The baseline won (98.5% vs. 97.0%). Balanced batches repeated my small, highly correlated recording sessions several times per epoch, and the model appears to have overfit to them.
+- **Testing a hypothesis against a baseline.** I expected class-balanced sampling to help, so I kept the unweighted mix as a switchable baseline. The baseline won (98.5% vs. 97.0%). Balanced batches repeated my small, highly correlated recording sessions several times per epoch, and the model seems to have overfit to them.
 - **Error analysis down to individual frames.** Validation errors weren't random. They came in contiguous runs at specific hand angles. When adding a second training session introduced new errors, I audited it with a model that had never seen it, which traced the new errors to specific samples in that session.
 - **Measuring whether a noisy feature earns its place.** Depth (z) is MediaPipe's noisiest output. Shuffling it across validation samples dropped accuracy from 98.5% to 88.2%, with the losses concentrated in letters that differ mainly by depth (M fell from 93.5% to 42.5%), so z stayed.
 - **Choosing the demo's confidence threshold from evidence.** At 0.7, the threshold kept 96.5% of correct per-frame predictions on validation while hiding 69.9% of wrong ones.
@@ -57,10 +59,10 @@ asl-alphabet-recognizer/
 ├── asl/                    # building blocks, one module per pipeline stage
 │   ├── labels.py           # the 24 letter labels
 │   ├── landmarks.py        # MediaPipe hand landmark extraction
-│   ├── features.py         # normalization → 63-number feature vector
-│   ├── data.py             # saved .npz files → features and labels
+│   ├── features.py         # normalization (63-number feature vector)
+│   ├── data.py             # saved .npz files of features and labels
 │   └── model.py            # the classifier, plus saving, loading, and running it
-├── prepare_kaggle_data.py  # Kaggle photos → landmark data
+├── prepare_kaggle_data.py  # Kaggle photos turned into landmark data
 ├── collect_data.py         # record labeled landmark samples from the webcam
 ├── train.py                # training with early stopping
 ├── evaluate.py             # per-letter accuracy and the most common confusions
